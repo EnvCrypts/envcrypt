@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -53,4 +54,39 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 	}
 
 	return nil
+}
+
+func (s *UserService) Login(ctx context.Context, email, password string) (*config.UserBody, error) {
+
+	user, err := s.q.GetUserByEmail(ctx, email)
+	if err != nil {
+		log.Print(err.Error())
+		return nil, err
+	}
+
+	var argonParams auth.Argon2idParams
+	err = json.Unmarshal(user.ArgonParams, &argonParams)
+	if err != nil {
+		return nil, err
+	}
+
+	stored := auth.PasswordHash{
+		Hash:          user.PasswordHash,
+		Salt:          user.PasswordSalt,
+		Argon2idParam: argonParams,
+	}
+
+	if auth.VerifyPassword(password, &stored) == false {
+		return nil, errors.New("invalid password")
+	}
+
+	return &config.UserBody{
+		Id:                      user.ID,
+		Email:                   user.Email,
+		PublicKey:               user.UserPublicKey,
+		EncryptedUserPrivateKey: user.EncryptedUserPrivateKey,
+		PrivateKeySalt:          user.PrivateKeySalt,
+		PrivateKeyNonce:         user.PrivateKeyNonce,
+		ArgonParams:             argonParams,
+	}, nil
 }

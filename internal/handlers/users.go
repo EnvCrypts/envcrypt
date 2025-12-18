@@ -20,11 +20,13 @@ func (handler *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var requestBody config.CreateRequestBody
+
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
 		helpers.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	defer r.Body.Close()
 
 	err = handler.Services.Users.Create(r.Context(), requestBody)
 	if err != nil {
@@ -33,4 +35,28 @@ func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, "User created successfully")
+}
+
+func (handler *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
+
+	var loginRequestBody config.LoginRequestBody
+	err := json.NewDecoder(r.Body).Decode(&loginRequestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	user, err := handler.Services.Users.Login(r.Context(), loginRequestBody.Email, loginRequestBody.Password)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var response = config.LoginResponseBody{
+		Message: "Login successful",
+		User:    *user,
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, response)
 }

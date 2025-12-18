@@ -14,39 +14,18 @@ func WriteError(w http.ResponseWriter, statusCode int, errorMessage string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(statusCode)
 
-	errorBody := ErrorResponse{
+	if err := json.NewEncoder(w).Encode(ErrorResponse{
 		Error: errorMessage,
-	}
-
-	resp, err := json.Marshal(errorBody)
-	if err != nil {
-		_, err := w.Write([]byte(errorMessage))
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		return
-	}
-
-	_, err = w.Write(resp)
-	if err != nil {
-		log.Println(err)
-		return
+	}); err != nil {
+		log.Println("failed to write error response:", err)
 	}
 }
 
-func WriteResponse(w http.ResponseWriter, statusCode int, response interface{}) {
-	w.WriteHeader(statusCode)
+func WriteResponse(w http.ResponseWriter, statusCode int, response any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	
-	resp, err := json.Marshal(response)
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	_, err = w.Write(resp)
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, err.Error())
-		return
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Println("failed to write response:", err)
 	}
 }

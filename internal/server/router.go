@@ -25,6 +25,7 @@ func UserRouter(handler *handlers.Handler) *http.ServeMux {
 
 	userRouter.HandleFunc("GET /all", handler.GetUsers)
 	userRouter.HandleFunc("POST /create", handler.CreateUser)
+	userRouter.HandleFunc("POST /login", handler.LoginUser)
 
 	return userRouter
 }
