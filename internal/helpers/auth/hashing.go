@@ -27,7 +27,7 @@ func HashPassword(password string) (*PasswordHash, error) {
 	}
 
 	time := uint32(3)
-	memory := uint32(64 * 1024) // 64MB
+	memory := uint32(64 * 1024)
 	parallelism := uint8(1)
 	keyLen := uint32(32)
 
