@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/vijayvenkatj/envcrypt/database"
@@ -41,6 +42,42 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		WrappedPmk:       createBody.WrappedPMK,
 		WrapNonce:        createBody.WrapNonce,
 		WrapEphemeralPub: createBody.EphemeralPublicKey,
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Print(wrappedPmk)
+
+	return nil
+}
+
+func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody config.AddUserToProjectRequest) error {
+
+	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: requestBody.ProjectId})
+	if err != nil {
+		return err
+	}
+
+	if projectRole.Role != "admin" {
+		return errors.New("user is not an admin")
+	}
+
+	_, err = s.q.AddUserToProject(ctx, database.AddUserToProjectParams{
+		ProjectID: requestBody.ProjectId,
+		UserID:    requestBody.UserId,
+		Role:      "member",
+	})
+	if err != nil {
+		return err
+	}
+
+	wrappedPmk, err := s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
+		ProjectID:        requestBody.ProjectId,
+		UserID:           requestBody.UserId,
+		WrappedPmk:       requestBody.WrappedPMK,
+		WrapNonce:        requestBody.WrapNonce,
+		WrapEphemeralPub: requestBody.EphemeralPublicKey,
 	})
 	if err != nil {
 		return err

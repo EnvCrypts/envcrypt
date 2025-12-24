@@ -90,3 +90,13 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 		ArgonParams:             argonParams,
 	}, nil
 }
+
+func (s *UserService) GetUserPublicKey(ctx context.Context, email string) ([]byte, error) {
+
+	user, err := s.q.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+
+	return user.UserPublicKey, nil
+}

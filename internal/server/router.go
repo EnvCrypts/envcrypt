@@ -27,6 +27,7 @@ func UserRouter(handler *handlers.Handler) *http.ServeMux {
 	userRouter.HandleFunc("GET /all", handler.GetUsers)
 	userRouter.HandleFunc("POST /create", handler.CreateUser)
 	userRouter.HandleFunc("POST /login", handler.LoginUser)
+	userRouter.HandleFunc("GET /user", handler.GetUserPublicKey)
 
 	return userRouter
 }
@@ -35,6 +36,7 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	projectRouter := http.NewServeMux()
 
 	projectRouter.HandleFunc("POST /create", handler.CreateProject)
+	projectRouter.HandleFunc("POST /addUser", handler.AddUserToProject)
 
 	return projectRouter
 }

@@ -33,3 +33,11 @@ type LoginResponseBody struct {
 	Message string   `json:"message"`
 	User    UserBody `json:"user"`
 }
+
+type UserKeyRequestBody struct {
+	Email string `json:"email"`
+}
+type UserKeyResponseBody struct {
+	Message   string `json:"message"`
+	PublicKey []byte `json:"public_key"`
+}

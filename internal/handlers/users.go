@@ -60,3 +60,27 @@ func (handler *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	helpers.WriteResponse(w, http.StatusOK, response)
 }
+
+func (handler *Handler) GetUserPublicKey(w http.ResponseWriter, r *http.Request) {
+
+	var requestBody config.UserKeyRequestBody
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	publicKey, err := handler.Services.Users.GetUserPublicKey(r.Context(), requestBody.Email)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var response = config.UserKeyResponseBody{
+		PublicKey: publicKey,
+		Message:   "User public key successfully retrieved",
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, response)
+}
