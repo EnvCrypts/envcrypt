@@ -28,7 +28,7 @@ VALUES (
 RETURNING *;
 
 -- name: GetUserProjectRole :one
-SELECT * FROm project_members WHERE project_id = $1 AND user_id = $2;
+SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2;
 
 -- name: AddWrappedPMK :one
 
@@ -48,3 +48,28 @@ VALUES (
         $5
        )
 RETURNING *;
+
+
+-- name: AddEnv :one
+INSERT INTO env_versions (
+    project_id,
+    env_name,
+    version,
+    nonce,
+    ciphertext,
+    created_by
+)
+VALUES (
+           $1,
+           $2,
+           $3,
+           $4,
+           $5,
+        $6
+       )
+RETURNING *;
+
+
+-- name: GetEnv :one
+SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 AND version = $3;
+

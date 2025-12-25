@@ -16,6 +16,7 @@ func NewRouter(dbQueries *database.Queries) *http.ServeMux {
 
 	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler)))
 	router.Handle("/projects/", http.StripPrefix("/projects", ProjectRouter(handler)))
+	router.Handle("/env/", http.StripPrefix("/env", EnvRouter(handler)))
 
 	return router
 }
@@ -39,4 +40,13 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	projectRouter.HandleFunc("POST /addUser", handler.AddUserToProject)
 
 	return projectRouter
+}
+
+func EnvRouter(handler *handlers.Handler) *http.ServeMux {
+	envRouter := http.NewServeMux()
+
+	envRouter.HandleFunc("GET /", handler.GetEnv)
+	envRouter.HandleFunc("POST /", handler.AddEnv)
+
+	return envRouter
 }
