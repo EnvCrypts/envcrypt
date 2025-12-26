@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -22,6 +23,7 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 
 	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
 	if err != nil {
+		log.Println("Error getting user")
 		return nil, err
 	}
 
@@ -39,6 +41,7 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 		Version:   requestBody.Version,
 	})
 	if err != nil {
+		log.Print(err.Error())
 		return nil, err
 	}
 

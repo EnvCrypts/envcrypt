@@ -36,6 +36,7 @@ func UserRouter(handler *handlers.Handler) *http.ServeMux {
 func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	projectRouter := http.NewServeMux()
 
+	projectRouter.HandleFunc("POST /keys", handler.GetUserProjectKeys)
 	projectRouter.HandleFunc("POST /create", handler.CreateProject)
 	projectRouter.HandleFunc("POST /addUser", handler.AddUserToProject)
 
@@ -50,3 +51,5 @@ func EnvRouter(handler *handlers.Handler) *http.ServeMux {
 
 	return envRouter
 }
+
+// TODO: Change how GET endpoints work

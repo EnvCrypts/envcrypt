@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"log"
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -36,7 +35,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		return err
 	}
 
-	wrappedPmk, err := s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
+	_, err = s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
 		ProjectID:        project.ID,
 		UserID:           createBody.UserId,
 		WrappedPmk:       createBody.WrappedPMK,
@@ -46,8 +45,6 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	if err != nil {
 		return err
 	}
-
-	log.Print(wrappedPmk)
 
 	return nil
 }
@@ -72,7 +69,7 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		return err
 	}
 
-	wrappedPmk, err := s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
+	_, err = s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
 		ProjectID:        requestBody.ProjectId,
 		UserID:           requestBody.UserId,
 		WrappedPmk:       requestBody.WrappedPMK,
@@ -83,7 +80,30 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		return err
 	}
 
-	log.Print(wrappedPmk)
-
 	return nil
+}
+
+func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.GetUserProjectRequest) (*config.GetUserProjectResponse, error) {
+
+	project, err := s.q.GetProject(ctx, requestBody.ProjectName)
+	if err != nil {
+		return nil, err
+	}
+
+	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
+		ProjectID: project.ID,
+		UserID:    requestBody.UserId,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var response = &config.GetUserProjectResponse{
+		ProjectId:          project.ID,
+		WrappedPMK:         wrappedKey.WrappedPmk,
+		WrapNonce:          wrappedKey.WrapNonce,
+		EphemeralPublicKey: wrappedKey.WrapEphemeralPub,
+	}
+
+	return response, nil
 }

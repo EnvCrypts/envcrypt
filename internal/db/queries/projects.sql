@@ -13,6 +13,10 @@ VALUES (
        )
 RETURNING *;
 
+-- name: GetProject :one
+
+SELECT * from projects WHERE name = $1;
+
 
 -- name: AddUserToProject :one
 INSERT INTO project_members (
@@ -49,6 +53,8 @@ VALUES (
        )
 RETURNING *;
 
+-- name: GetProjectWrappedKey :one
+SELECT * FROM project_wrapped_keys WHERE project_id = $1 AND user_id = $2;
 
 -- name: AddEnv :one
 INSERT INTO env_versions (
