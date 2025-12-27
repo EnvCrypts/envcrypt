@@ -46,10 +46,9 @@ func EnvRouter(handler *handlers.Handler) *http.ServeMux {
 	envRouter := http.NewServeMux()
 
 	envRouter.HandleFunc("POST /search", handler.GetEnv)
+	envRouter.HandleFunc("POST /search/all", handler.GetEnvVersions)
 	envRouter.HandleFunc("POST /create", handler.AddEnv)
 	envRouter.HandleFunc("POST /update", handler.UpdateEnv)
 
 	return envRouter
 }
-
-// TODO: Change how GET endpoints work

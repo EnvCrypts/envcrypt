@@ -29,6 +29,27 @@ func (handler *Handler) GetEnv(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteResponse(w, http.StatusOK, resp)
 }
 
+func (handler *Handler) GetEnvVersions(w http.ResponseWriter, r *http.Request) {
+
+	var RequestBody config.GetEnvVersionsRequest
+
+	err := json.NewDecoder(r.Body).Decode(&RequestBody)
+	if err != nil {
+
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	resp, err := handler.Services.Env.GetEnvVersions(r.Context(), RequestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, resp)
+}
+
 func (handler *Handler) AddEnv(w http.ResponseWriter, r *http.Request) {
 	var RequestBody config.AddEnvRequest
 

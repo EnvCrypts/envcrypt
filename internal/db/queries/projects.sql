@@ -65,20 +65,21 @@ INSERT INTO env_versions (
     ciphertext,
     created_by
 )
-VALUES (
-           $1,
-           $2,
-           $3,
-           $4,
-           $5,
-        $6
-       )
-RETURNING *;
+SELECT
+    $1,
+    $2,
+    COALESCE(MAX(version), 0) + 1,
+    $3,
+    $4,
+    $5
+FROM env_versions
+WHERE project_id = $1
+  AND env_name = $2
+    RETURNING *;
 
 
 -- name: GetEnv :one
 SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 AND version = $3;
 
--- name: UpdateEnv :one
-UPDATE env_versions SET ciphertext = $3 AND nonce = $4 AND version = $5 WHERE project_id = $1 AND env_name = $2 RETURNING *;
-
+-- name: GetEnvVersions :many
+SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 ORDER BY version DESC;

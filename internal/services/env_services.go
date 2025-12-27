@@ -7,6 +7,7 @@ import (
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
 
 type EnvServices struct {
@@ -51,6 +52,42 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 	}, nil
 }
 
+func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.GetEnvVersionsRequest) (*config.GetEnvVersionsResponse, error) {
+	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
+	if err != nil {
+		log.Println("Error getting user")
+		return nil, err
+	}
+
+	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
+		UserID:    user.ID,
+		ProjectID: requestBody.ProjectId,
+	})
+	if err != nil {
+		return nil, errors.New("user doesn't have permission to get env")
+	}
+
+	envVersions, err := s.q.GetEnvVersions(ctx, database.GetEnvVersionsParams{
+		ProjectID: requestBody.ProjectId,
+		EnvName:   requestBody.EnvName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var envResponses []config.EnvResponse
+
+	for _, envVersion := range envVersions {
+		envResponses = append(envResponses, config.EnvResponse{
+			CipherText: envVersion.Ciphertext,
+			Nonce:      envVersion.Nonce,
+			Version:    envVersion.Version,
+		})
+	}
+
+	return &config.GetEnvVersionsResponse{EnvVersions: envResponses}, nil
+}
+
 func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvRequest) error {
 	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
 	if err != nil {
@@ -68,12 +105,14 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
 		ProjectID:  requestBody.ProjectId,
 		EnvName:    requestBody.EnvName,
-		Version:    requestBody.Version,
 		Ciphertext: requestBody.CipherText,
 		Nonce:      requestBody.Nonce,
 		CreatedBy:  user.ID,
 	})
 	if err != nil {
+		if dberrors.IsUniqueViolation(err) {
+			return errors.New("env with this version already exists")
+		}
 		return err
 	}
 
@@ -87,18 +126,19 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
-		UserID: user.ID,
+		UserID:    user.ID,
+		ProjectID: requestBody.ProjectId,
 	})
 	if err != nil {
 		return errors.New("user doesn't have permission to update env")
 	}
 
-	_, err = s.q.UpdateEnv(ctx, database.UpdateEnvParams{
+	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
 		ProjectID:  requestBody.ProjectId,
 		EnvName:    requestBody.EnvName,
-		Version:    requestBody.Version,
 		Ciphertext: requestBody.CipherText,
 		Nonce:      requestBody.Nonce,
+		CreatedBy:  user.ID,
 	})
 	if err != nil {
 		return err
