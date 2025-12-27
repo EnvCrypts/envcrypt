@@ -25,10 +25,9 @@ func UserRouter(handler *handlers.Handler) *http.ServeMux {
 
 	userRouter := http.NewServeMux()
 
-	userRouter.HandleFunc("GET /all", handler.GetUsers)
 	userRouter.HandleFunc("POST /create", handler.CreateUser)
 	userRouter.HandleFunc("POST /login", handler.LoginUser)
-	userRouter.HandleFunc("GET /user", handler.GetUserPublicKey)
+	userRouter.HandleFunc("POST /search", handler.GetUserPublicKey)
 
 	return userRouter
 }
@@ -46,8 +45,9 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 func EnvRouter(handler *handlers.Handler) *http.ServeMux {
 	envRouter := http.NewServeMux()
 
-	envRouter.HandleFunc("GET /", handler.GetEnv)
-	envRouter.HandleFunc("POST /", handler.AddEnv)
+	envRouter.HandleFunc("POST /search", handler.GetEnv)
+	envRouter.HandleFunc("POST /create", handler.AddEnv)
+	envRouter.HandleFunc("POST /update", handler.UpdateEnv)
 
 	return envRouter
 }

@@ -79,3 +79,30 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 
 	return nil
 }
+
+func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEnvRequest) error {
+	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
+		UserID: user.ID,
+	})
+	if err != nil {
+		return errors.New("user doesn't have permission to update env")
+	}
+
+	_, err = s.q.UpdateEnv(ctx, database.UpdateEnvParams{
+		ProjectID:  requestBody.ProjectId,
+		EnvName:    requestBody.EnvName,
+		Version:    requestBody.Version,
+		Ciphertext: requestBody.CipherText,
+		Nonce:      requestBody.Nonce,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

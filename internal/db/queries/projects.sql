@@ -79,3 +79,6 @@ RETURNING *;
 -- name: GetEnv :one
 SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 AND version = $3;
 
+-- name: UpdateEnv :one
+UPDATE env_versions SET ciphertext = $3 AND nonce = $4 AND version = $5 WHERE project_id = $1 AND env_name = $2 RETURNING *;
+

@@ -51,3 +51,25 @@ func (handler *Handler) AddEnv(w http.ResponseWriter, r *http.Request) {
 		Message: "env added successfully",
 	})
 }
+
+func (handler *Handler) UpdateEnv(w http.ResponseWriter, r *http.Request) {
+	var RequestBody config.UpdateEnvRequest
+	err := json.NewDecoder(r.Body).Decode(&RequestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	err = handler.Services.Env.UpdateEnv(r.Context(), RequestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusCreated, struct {
+		Message string `json:"message"`
+	}{
+		Message: "env updated successfully",
+	})
+}
