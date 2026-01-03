@@ -7,7 +7,9 @@ CREATE TABLE projects (
       name TEXT NOT NULL,
       created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+      UNIQUE (name,created_by)
 );
 
 

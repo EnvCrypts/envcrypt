@@ -6,6 +6,7 @@ import (
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
 
 type ProjectService struct {
@@ -23,6 +24,9 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		CreatedBy: createBody.UserId,
 	})
 	if err != nil {
+		if dberrors.IsUniqueViolation(err) {
+			return errors.New("project already exists")
+		}
 		return err
 	}
 
@@ -85,7 +89,10 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 
 func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.GetUserProjectRequest) (*config.GetUserProjectResponse, error) {
 
-	project, err := s.q.GetProject(ctx, requestBody.ProjectName)
+	project, err := s.q.GetProject(ctx, database.GetProjectParams{
+		Name:      requestBody.ProjectName,
+		CreatedBy: requestBody.UserId,
+	})
 	if err != nil {
 		return nil, err
 	}

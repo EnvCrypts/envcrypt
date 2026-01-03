@@ -15,7 +15,7 @@ RETURNING *;
 
 -- name: GetProject :one
 
-SELECT * from projects WHERE name = $1;
+SELECT * from projects WHERE name = $1 AND created_by = $2;
 
 
 -- name: AddUserToProject :one
