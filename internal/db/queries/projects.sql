@@ -81,5 +81,8 @@ WHERE project_id = $1
 -- name: GetEnv :one
 SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 AND version = $3;
 
+-- name: GetLatestEnv :one
+SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 ORDER BY version DESC LIMIT 1;
+
 -- name: GetEnvVersions :many
 SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 ORDER BY version DESC;

@@ -7,7 +7,7 @@ type GetEnvRequest struct {
 	Email     string    `json:"user_email"`
 
 	EnvName string `json:"env_name"`
-	Version int32  `json:"version"`
+	Version *int32 `json:"version"`
 }
 
 type GetEnvResponse struct {

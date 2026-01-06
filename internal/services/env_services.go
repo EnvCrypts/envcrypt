@@ -36,14 +36,26 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 		return nil, errors.New("user doesn't have permission to get env")
 	}
 
-	env, err := s.q.GetEnv(ctx, database.GetEnvParams{
-		ProjectID: requestBody.ProjectId,
-		EnvName:   requestBody.EnvName,
-		Version:   requestBody.Version,
-	})
-	if err != nil {
-		log.Print(err.Error())
-		return nil, err
+	var env database.EnvVersion
+	if requestBody.Version != nil {
+		env, err = s.q.GetEnv(ctx, database.GetEnvParams{
+			ProjectID: requestBody.ProjectId,
+			EnvName:   requestBody.EnvName,
+			Version:   *requestBody.Version,
+		})
+		if err != nil {
+			log.Print(err.Error())
+			return nil, err
+		}
+	} else {
+		env, err = s.q.GetLatestEnv(ctx, database.GetLatestEnvParams{
+			ProjectID: requestBody.ProjectId,
+			EnvName:   requestBody.EnvName,
+		})
+		if err != nil {
+			log.Print(err.Error())
+			return nil, err
+		}
 	}
 
 	return &config.GetEnvResponse{
