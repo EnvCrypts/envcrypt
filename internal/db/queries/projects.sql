@@ -63,7 +63,8 @@ INSERT INTO env_versions (
     version,
     nonce,
     ciphertext,
-    created_by
+    created_by,
+    metadata
 )
 SELECT
     $1,
@@ -71,11 +72,13 @@ SELECT
     COALESCE(MAX(version), 0) + 1,
     $3,
     $4,
-    $5
+    $5,
+    $6
 FROM env_versions
-WHERE project_id = $1
-  AND env_name = $2
-    RETURNING *;
+WHERE project_id = $1 AND env_name = $2
+RETURNING *;
+
+
 
 
 -- name: GetEnv :one

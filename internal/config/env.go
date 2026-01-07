@@ -2,6 +2,10 @@ package config
 
 import "github.com/google/uuid"
 
+type Metadata struct {
+	Type string `json:"type"`
+}
+
 type GetEnvRequest struct {
 	ProjectId uuid.UUID `json:"project_id"`
 	Email     string    `json:"user_email"`
@@ -23,9 +27,10 @@ type GetEnvVersionsRequest struct {
 }
 
 type EnvResponse struct {
-	CipherText []byte `json:"cipher_text"`
-	Nonce      []byte `json:"nonce"`
-	Version    int32  `json:"version"`
+	CipherText []byte   `json:"cipher_text"`
+	Nonce      []byte   `json:"nonce"`
+	Version    int32    `json:"version"`
+	Metadata   Metadata `json:"metadata"`
 }
 type GetEnvVersionsResponse struct {
 	EnvVersions []EnvResponse `json:"env_versions"`
@@ -37,6 +42,8 @@ type AddEnvRequest struct {
 	EnvName    string `json:"env_name"`
 	CipherText []byte `json:"cipher_text"`
 	Nonce      []byte `json:"nonce"`
+
+	Metadata Metadata `json:"metadata"`
 }
 
 type AddEnvResponse struct {
@@ -50,6 +57,8 @@ type UpdateEnvRequest struct {
 	EnvName    string `json:"env_name"`
 	CipherText []byte `json:"cipher_text"`
 	Nonce      []byte `json:"nonce"`
+
+	Metadata Metadata `json:"metadata"`
 }
 
 type UpdateEnvResponse struct {

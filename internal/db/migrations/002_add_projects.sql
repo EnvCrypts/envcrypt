@@ -50,6 +50,8 @@ CREATE TABLE env_versions (
           ciphertext BYTEA NOT NULL,
           nonce BYTEA NOT NULL,
 
+          metadata JSONB NOT NULL DEFAULT '{"type":"env_created"}',
+
           created_by UUID NOT NULL REFERENCES users(id),
           created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 

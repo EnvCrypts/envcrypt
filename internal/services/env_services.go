@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 
@@ -90,10 +91,17 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 	var envResponses []config.EnvResponse
 
 	for _, envVersion := range envVersions {
+		var metadata config.Metadata
+		err = json.Unmarshal(envVersion.Metadata, &metadata)
+		if err != nil {
+			log.Print(err.Error())
+		}
+
 		envResponses = append(envResponses, config.EnvResponse{
 			CipherText: envVersion.Ciphertext,
 			Nonce:      envVersion.Nonce,
 			Version:    envVersion.Version,
+			Metadata:   metadata,
 		})
 	}
 
@@ -114,12 +122,18 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 		return errors.New("user doesn't have permission to store env")
 	}
 
+	metadata, err := json.Marshal(requestBody.Metadata)
+	if err != nil {
+		return err
+	}
+
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
 		ProjectID:  requestBody.ProjectId,
 		EnvName:    requestBody.EnvName,
 		Ciphertext: requestBody.CipherText,
 		Nonce:      requestBody.Nonce,
 		CreatedBy:  user.ID,
+		Metadata:   metadata,
 	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
@@ -145,12 +159,18 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 		return errors.New("user doesn't have permission to update env")
 	}
 
+	metadata, err := json.Marshal(requestBody.Metadata)
+	if err != nil {
+		return err
+	}
+
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
 		ProjectID:  requestBody.ProjectId,
 		EnvName:    requestBody.EnvName,
 		Ciphertext: requestBody.CipherText,
 		Nonce:      requestBody.Nonce,
 		CreatedBy:  user.ID,
+		Metadata:   metadata,
 	})
 	if err != nil {
 		return err
