@@ -14,6 +14,9 @@ type CreateRequestBody struct {
 	PrivateKeySalt          []byte `json:"private_key_salt"`
 	PrivateKeyNonce         []byte `json:"private_key_nonce"`
 }
+type CreateResponseBody struct {
+	Message string `json:"message"`
+}
 
 type UserBody struct {
 	Id                      uuid.UUID           `json:"id"`

@@ -34,7 +34,11 @@ func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteResponse(w, http.StatusCreated, "User created successfully")
+	var response = config.CreateResponseBody{
+		Message: "User created successfully",
+	}
+
+	helpers.WriteResponse(w, http.StatusCreated, response)
 }
 
 func (handler *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
