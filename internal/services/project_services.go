@@ -53,6 +53,33 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	return nil
 }
 
+func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.ProjectDeleteRequest) error {
+
+	project, err := s.q.GetProject(ctx, database.GetProjectParams{
+		Name:      requestBody.ProjectName,
+		CreatedBy: requestBody.UserId,
+	})
+	if err != nil {
+		return errors.New("project not found")
+	}
+
+	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: project.CreatedBy, ProjectID: project.ID})
+	if err != nil {
+		return errors.New("project role not found")
+	}
+
+	if projectRole.Role != "admin" {
+		return errors.New("user is not an admin")
+	}
+
+	err = s.q.DeleteProject(ctx, project.ID)
+	if err != nil {
+		return errors.New("unable to delete project")
+	}
+
+	return nil
+}
+
 func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody config.AddUserToProjectRequest) error {
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: requestBody.ProjectId})

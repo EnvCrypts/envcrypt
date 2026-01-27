@@ -28,7 +28,7 @@ func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	err = handler.Services.Users.Create(r.Context(), requestBody)
+	user, err := handler.Services.Users.Create(r.Context(), requestBody)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -36,6 +36,7 @@ func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	var response = config.CreateResponseBody{
 		Message: "User created successfully",
+		User:    *user,
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, response)
@@ -75,7 +76,7 @@ func (handler *Handler) GetUserPublicKey(w http.ResponseWriter, r *http.Request)
 	}
 	defer r.Body.Close()
 
-	publicKey, err := handler.Services.Users.GetUserPublicKey(r.Context(), requestBody.Email)
+	userId, publicKey, err := handler.Services.Users.GetUserPublicKey(r.Context(), requestBody.Email)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -83,6 +84,7 @@ func (handler *Handler) GetUserPublicKey(w http.ResponseWriter, r *http.Request)
 
 	var response = config.UserKeyResponseBody{
 		PublicKey: publicKey,
+		UserId:    userId,
 		Message:   "User public key successfully retrieved",
 	}
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers/auth"
@@ -24,19 +25,19 @@ func (s *UserService) GetAllUsers(ctx context.Context) ([]database.User, error) 
 	return s.q.GetUsers(ctx)
 }
 
-func (s *UserService) Create(ctx context.Context, createBody config.CreateRequestBody) error {
+func (s *UserService) Create(ctx context.Context, createBody config.CreateRequestBody) (*config.UserBody, error) {
 
 	passwordHash, err := auth.HashPassword(createBody.Password)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	paramsJson, err := json.Marshal(passwordHash.Argon2idParam)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = s.q.CreateUser(ctx, database.CreateUserParams{
+	user, err := s.q.CreateUser(ctx, database.CreateUserParams{
 		Email:                   createBody.Email,
 		PasswordHash:            passwordHash.Hash,
 		PasswordSalt:            passwordHash.Salt,
@@ -48,12 +49,26 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
-			return errors.New("user already exists")
+			return nil, errors.New("user already exists")
 		}
-		return err
+		return nil, err
 	}
 
-	return nil
+	var argonParams auth.Argon2idParams
+	err = json.Unmarshal(user.ArgonParams, &argonParams)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config.UserBody{
+		Id:                      user.ID,
+		Email:                   user.Email,
+		PublicKey:               user.UserPublicKey,
+		EncryptedUserPrivateKey: user.EncryptedUserPrivateKey,
+		PrivateKeySalt:          user.PrivateKeySalt,
+		PrivateKeyNonce:         user.PrivateKeyNonce,
+		ArgonParams:             argonParams,
+	}, nil
 }
 
 func (s *UserService) Login(ctx context.Context, email, password string) (*config.UserBody, error) {
@@ -91,12 +106,12 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 	}, nil
 }
 
-func (s *UserService) GetUserPublicKey(ctx context.Context, email string) ([]byte, error) {
+func (s *UserService) GetUserPublicKey(ctx context.Context, email string) (uuid.UUID, []byte, error) {
 
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, nil, err
 	}
 
-	return user.UserPublicKey, nil
+	return user.ID, user.UserPublicKey, nil
 }

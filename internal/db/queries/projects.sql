@@ -13,10 +13,11 @@ VALUES (
        )
 RETURNING *;
 
+-- name: DeleteProject :exec
+DELETE FROM projects WHERE id = $1;
+
 -- name: GetProject :one
-
 SELECT * from projects WHERE name = $1 AND created_by = $2;
-
 
 -- name: AddUserToProject :one
 INSERT INTO project_members (

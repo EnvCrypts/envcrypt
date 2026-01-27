@@ -15,7 +15,8 @@ type CreateRequestBody struct {
 	PrivateKeyNonce         []byte `json:"private_key_nonce"`
 }
 type CreateResponseBody struct {
-	Message string `json:"message"`
+	Message string   `json:"message"`
+	User    UserBody `json:"user"`
 }
 
 type UserBody struct {
@@ -41,6 +42,7 @@ type UserKeyRequestBody struct {
 	Email string `json:"email"`
 }
 type UserKeyResponseBody struct {
-	Message   string `json:"message"`
-	PublicKey []byte `json:"public_key"`
+	Message   string    `json:"message"`
+	UserId    uuid.UUID `json:"user_id"`
+	PublicKey []byte    `json:"public_key"`
 }
