@@ -110,7 +110,7 @@ func (s *UserService) GetUserPublicKey(ctx context.Context, email string) (uuid.
 
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
-		return uuid.Nil, nil, err
+		return uuid.Nil, nil, errors.New("user not found")
 	}
 
 	return user.ID, user.UserPublicKey, nil

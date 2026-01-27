@@ -104,33 +104,48 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 
 func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody config.AddUserToProjectRequest) error {
 
-	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: requestBody.ProjectId})
+	project, err := s.q.GetProject(ctx, database.GetProjectParams{
+		Name:      requestBody.ProjectName,
+		CreatedBy: requestBody.AdminId,
+	})
 	if err != nil {
-		return err
+		return errors.New("project not found")
+	}
+
+	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
+	if err != nil {
+		return errors.New("user role not found")
 	}
 
 	if projectRole.Role != "admin" {
 		return errors.New("user is not an admin")
 	}
 
+	var role = "member"
+	if requestBody.Role == "admin" {
+		role = "admin"
+	}
 	_, err = s.q.AddUserToProject(ctx, database.AddUserToProjectParams{
-		ProjectID: requestBody.ProjectId,
+		ProjectID: project.ID,
 		UserID:    requestBody.UserId,
-		Role:      "member",
+		Role:      role,
 	})
 	if err != nil {
-		return err
+		if dberrors.IsUniqueViolation(err) {
+			return errors.New("project already has user")
+		}
+		return errors.New("unable to add user to project")
 	}
 
 	_, err = s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
-		ProjectID:        requestBody.ProjectId,
+		ProjectID:        project.ID,
 		UserID:           requestBody.UserId,
 		WrappedPmk:       requestBody.WrappedPMK,
 		WrapNonce:        requestBody.WrapNonce,
 		WrapEphemeralPub: requestBody.EphemeralPublicKey,
 	})
 	if err != nil {
-		return err
+		return errors.New("unable to add wrapped pmk")
 	}
 
 	return nil
@@ -143,7 +158,7 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 		CreatedBy: requestBody.UserId,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.New("project not found")
 	}
 
 	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
@@ -151,7 +166,7 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 		UserID:    requestBody.UserId,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.New("project wrapped key not found")
 	}
 
 	var response = &config.GetUserProjectResponse{
