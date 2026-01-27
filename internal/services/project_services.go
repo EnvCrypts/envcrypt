@@ -53,6 +53,28 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	return nil
 }
 
+func (s *ProjectService) ListProjects(ctx context.Context, requestBody config.ListProjectRequest) (*config.ListProjectResponse, error) {
+
+	projects, err := s.q.ListProjectsWithRole(ctx, requestBody.UserId)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &config.ListProjectResponse{
+		Projects: make([]config.Project, len(projects)),
+	}
+
+	for i, project := range projects {
+		resp.Projects[i] = config.Project{
+			Id:   project.ID,
+			Name: project.Name,
+			Role: project.Role,
+		}
+	}
+
+	return resp, nil
+}
+
 func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.ProjectDeleteRequest) error {
 
 	project, err := s.q.GetProject(ctx, database.GetProjectParams{

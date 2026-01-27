@@ -19,6 +19,17 @@ DELETE FROM projects WHERE id = $1;
 -- name: GetProject :one
 SELECT * from projects WHERE name = $1 AND created_by = $2;
 
+-- name: ListProjectsWithRole :many
+SELECT
+    p.id,
+    p.name,
+    p.created_by,
+    p.created_at,
+    pm.role
+FROM projects p JOIN project_members pm ON pm.project_id = p.id
+WHERE pm.user_id = $1
+ORDER BY p.created_at DESC;
+
 -- name: AddUserToProject :one
 INSERT INTO project_members (
     project_id,
