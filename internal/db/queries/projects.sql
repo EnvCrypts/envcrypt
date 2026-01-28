@@ -1,5 +1,4 @@
 -- name: GetUserProjects :many
-
 SELECT * FROM projects WHERE created_by = $1 ORDER BY created_at desc;
 
 -- name: CreateProject :one
@@ -25,7 +24,8 @@ SELECT
     p.name,
     p.created_by,
     p.created_at,
-    pm.role
+    pm.role,
+    pm.is_revoked
 FROM projects p JOIN project_members pm ON pm.project_id = p.id
 WHERE pm.user_id = $1
 ORDER BY p.created_at DESC;
@@ -44,10 +44,15 @@ VALUES (
 RETURNING *;
 
 -- name: GetUserProjectRole :one
-SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2;
+SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 and is_revoked = $3;
+
+-- name: SetUserAccess :exec
+UPDATE project_members
+SET is_revoked = $3
+WHERE user_id = $1 AND project_id = $2;
+
 
 -- name: AddWrappedPMK :one
-
 INSERT INTO project_wrapped_keys (
     project_id,
     user_id,
@@ -67,6 +72,10 @@ RETURNING *;
 
 -- name: GetProjectWrappedKey :one
 SELECT * FROM project_wrapped_keys WHERE project_id = $1 AND user_id = $2;
+
+
+
+
 
 -- name: AddEnv :one
 INSERT INTO env_versions (

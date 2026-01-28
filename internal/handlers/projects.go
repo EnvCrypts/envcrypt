@@ -97,6 +97,29 @@ func (handler *Handler) AddUserToProject(w http.ResponseWriter, r *http.Request)
 	helpers.WriteResponse(w, http.StatusCreated, responseBody)
 }
 
+func (handler *Handler) SetUserAccess(w http.ResponseWriter, r *http.Request) {
+
+	var requestBody config.SetAccessRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	err = handler.Services.Projects.SetUserAccess(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var responseBody = config.ProjectCreateResponse{
+		Message: "User access set successfully!",
+	}
+	helpers.WriteResponse(w, http.StatusOK, responseBody)
+}
+
 func (handler *Handler) GetUserProjectKeys(w http.ResponseWriter, r *http.Request) {
 
 	var requestBody config.GetUserProjectRequest

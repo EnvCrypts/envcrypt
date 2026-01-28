@@ -18,6 +18,7 @@ CREATE TABLE project_members (
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
         role TEXT NOT NULL CHECK (role IN ('admin', 'member')),
+        is_revoked BOOL NOT NULL DEFAULT false,
 
         added_at TIMESTAMP NOT NULL DEFAULT NOW(),
 

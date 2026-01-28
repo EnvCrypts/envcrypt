@@ -32,6 +32,7 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
 		UserID:    user.ID,
 		ProjectID: requestBody.ProjectId,
+		IsRevoked: false,
 	})
 	if err != nil {
 		return nil, errors.New("user doesn't have permission to get env")
@@ -75,6 +76,7 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
 		UserID:    user.ID,
 		ProjectID: requestBody.ProjectId,
+		IsRevoked: false,
 	})
 	if err != nil {
 		return nil, errors.New("user doesn't have permission to get env")
@@ -117,6 +119,7 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
 		UserID:    user.ID,
 		ProjectID: requestBody.ProjectId,
+		IsRevoked: false,
 	})
 	if err != nil {
 		return errors.New("user doesn't have permission to store env")
@@ -154,6 +157,7 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
 		UserID:    user.ID,
 		ProjectID: requestBody.ProjectId,
+		IsRevoked: false,
 	})
 	if err != nil {
 		return errors.New("user doesn't have permission to update env")

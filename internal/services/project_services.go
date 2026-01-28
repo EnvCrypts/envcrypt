@@ -66,9 +66,10 @@ func (s *ProjectService) ListProjects(ctx context.Context, requestBody config.Li
 
 	for i, project := range projects {
 		resp.Projects[i] = config.Project{
-			Id:   project.ID,
-			Name: project.Name,
-			Role: project.Role,
+			Id:        project.ID,
+			Name:      project.Name,
+			Role:      project.Role,
+			IsRevoked: project.IsRevoked,
 		}
 	}
 
@@ -88,6 +89,9 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: project.CreatedBy, ProjectID: project.ID})
 	if err != nil {
 		return errors.New("project role not found")
+	}
+	if projectRole.IsRevoked == true {
+		return errors.New("user access is revoked")
 	}
 
 	if projectRole.Role != "admin" {
@@ -120,6 +124,9 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	if projectRole.Role != "admin" {
 		return errors.New("user is not an admin")
 	}
+	if projectRole.IsRevoked == true {
+		return errors.New("user access is revoked")
+	}
 
 	var role = "member"
 	if requestBody.Role == "admin" {
@@ -146,6 +153,45 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		return errors.New("unable to add wrapped pmk")
+	}
+
+	return nil
+}
+
+func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.SetAccessRequest) error {
+
+	project, err := s.q.GetProject(ctx, database.GetProjectParams{
+		Name:      requestBody.ProjectName,
+		CreatedBy: requestBody.AdminId,
+	})
+	if err != nil {
+		return errors.New("project not found")
+	}
+
+	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
+	if err != nil {
+		return errors.New("user role not found")
+	}
+
+	if projectRole.Role != "admin" {
+		return errors.New("user is not an admin")
+	}
+	if projectRole.IsRevoked == true {
+		return errors.New("user access is revoked")
+	}
+
+	user, err := s.q.GetUserByEmail(ctx, requestBody.UserEmail)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	err = s.q.SetUserAccess(ctx, database.SetUserAccessParams{
+		UserID:    user.ID,
+		ProjectID: project.ID,
+		IsRevoked: requestBody.IsRevoked,
+	})
+	if err != nil {
+		return errors.New("unable to revoke user access")
 	}
 
 	return nil
