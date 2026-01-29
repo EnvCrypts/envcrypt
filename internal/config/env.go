@@ -37,7 +37,7 @@ type GetEnvVersionsResponse struct {
 }
 type AddEnvRequest struct {
 	ProjectId uuid.UUID `json:"project_id"`
-	Email     string    `json:"user_email"`
+	UserId    uuid.UUID `json:"user_id"`
 
 	EnvName    string `json:"env_name"`
 	CipherText []byte `json:"cipher_text"`

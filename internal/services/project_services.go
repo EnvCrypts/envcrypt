@@ -224,3 +224,17 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 
 	return response, nil
 }
+
+func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody config.GetMemberProjectRequest) (*config.GetMemberProjectResponse, error) {
+	project, err := s.q.GetMemberProject(ctx, database.GetMemberProjectParams{
+		Name:   requestBody.ProjectName,
+		UserID: requestBody.UserId,
+	})
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+
+	return &config.GetMemberProjectResponse{
+		ProjectId: project,
+	}, nil
+}

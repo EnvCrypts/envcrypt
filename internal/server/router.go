@@ -38,6 +38,7 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	projectRouter.HandleFunc("POST /keys", handler.GetUserProjectKeys)
 	projectRouter.HandleFunc("POST /create", handler.CreateProject)
 	projectRouter.HandleFunc("POST /list", handler.ListProjects)
+	projectRouter.HandleFunc("POST /get", handler.GetMemberProject)
 	projectRouter.HandleFunc("POST /delete", handler.DeleteProject)
 	projectRouter.HandleFunc("POST /addUser", handler.AddUserToProject)
 	projectRouter.HandleFunc("POST /access", handler.SetUserAccess)

@@ -111,13 +111,9 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 }
 
 func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvRequest) error {
-	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
-	if err != nil {
-		return err
-	}
 
-	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
-		UserID:    user.ID,
+	_, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
+		UserID:    requestBody.UserId,
 		ProjectID: requestBody.ProjectId,
 		IsRevoked: false,
 	})
@@ -135,7 +131,7 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 		EnvName:    requestBody.EnvName,
 		Ciphertext: requestBody.CipherText,
 		Nonce:      requestBody.Nonce,
-		CreatedBy:  user.ID,
+		CreatedBy:  requestBody.UserId,
 		Metadata:   metadata,
 	})
 	if err != nil {

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -134,7 +133,26 @@ func (handler *Handler) GetUserProjectKeys(w http.ResponseWriter, r *http.Reques
 	resp, err := handler.Services.Projects.GetUserProject(r.Context(), requestBody)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
-		log.Print(err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, resp)
+}
+
+func (handler *Handler) GetMemberProject(w http.ResponseWriter, r *http.Request) {
+
+	var requestBody config.GetMemberProjectRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	resp, err := handler.Services.Projects.GetMemberProject(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

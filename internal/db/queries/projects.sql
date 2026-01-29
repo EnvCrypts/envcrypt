@@ -30,6 +30,14 @@ FROM projects p JOIN project_members pm ON pm.project_id = p.id
 WHERE pm.user_id = $1
 ORDER BY p.created_at DESC;
 
+-- name: GetMemberProject :one
+SELECT p.id
+FROM projects p
+         JOIN project_members pm ON pm.project_id = p.id
+WHERE p.name = $1
+  AND pm.user_id = $2;
+
+
 -- name: AddUserToProject :one
 INSERT INTO project_members (
     project_id,
