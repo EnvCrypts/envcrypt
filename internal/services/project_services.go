@@ -234,7 +234,20 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 		return nil, errors.New("project not found")
 	}
 
-	return &config.GetMemberProjectResponse{
-		ProjectId: project,
-	}, nil
+	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
+		ProjectID: project,
+		UserID:    requestBody.UserId,
+	})
+	if err != nil {
+		return nil, errors.New("project wrapped key not found")
+	}
+
+	var response = &config.GetMemberProjectResponse{
+		ProjectId:          project,
+		WrappedPMK:         wrappedKey.WrappedPmk,
+		WrapNonce:          wrappedKey.WrapNonce,
+		EphemeralPublicKey: wrappedKey.WrapEphemeralPub,
+	}
+
+	return response, nil
 }
