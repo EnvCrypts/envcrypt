@@ -1,0 +1,53 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync .env to VPS
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          cat > /home/github/envcrypt/.env << 'EOL'
+          GOOSE_DRIVER=postgres
+          GOOSE_DBSTRING=${{ secrets.GOOSE_DBSTRING }}
+          GOOSE_MIGRATION_DIR=./internal/db/migrations
+
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          EOL
+          EOF
+
+      - name: Deploy application
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+            cd /home/github/envcrypt
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Generating SQLC files..."
+            sqlc generate
+
+            echo "Restarting containers..."
+            docker compose down
+            docker compose build
+            docker compose up -d
+
+            echo "Deployment completed!"
+          EOF
