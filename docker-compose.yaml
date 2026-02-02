@@ -1,15 +1,30 @@
 services:
+  api:
+    build: .
+    env_file: .env
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    networks:
+      - envcrypt-backend
+
   postgres:
     image: postgres:18
     container_name: envcrypt-db
     environment:
-      POSTGRES_USER: vijay
-      POSTGRES_PASSWORD: vijay
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: envcrypt
     volumes:
       - pgdata:/var/lib/postgresql   # Correct for Postgres 18+
-    ports:
-      - "5432:5432"
+    networks:
+        - envcrypt-backend
 
 volumes:
   pgdata:
+
+
+networks:
+  envcrypt-backend:
+    driver: bridge
