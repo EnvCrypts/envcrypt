@@ -1,11 +1,17 @@
 services:
   api:
     build: .
-    env_file: .env
+    environment:
+      GOOSE_DRIVER: ${GOOSE_DRIVER}
+      GOOSE_DBSTRING: ${DATABASE_URL}
+      GOOSE_MIGRATION_DIR: ./internal/db/migrations
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: ${DATABASE_URL}
     depends_on:
       - postgres
     ports:
-      - "8080:8080"
+      - "8081:8080"
     networks:
       - envcrypt-backend
 
