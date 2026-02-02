@@ -21,7 +21,7 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		Addr:        getEnv("ADDR", ":8081"),
+		Addr:        getEnv("ADDR", ":8080"),
 		DatabaseURL: mustEnv("DATABASE_URL"),
 		Env:         getEnv("ENV", "development"),
 	}
