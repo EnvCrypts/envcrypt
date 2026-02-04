@@ -25,3 +25,36 @@ RETURNING *;
 DELETE FROM service_roles
 WHERE id = $1
     RETURNING id;
+
+
+-- name: DelegateAccess :one
+INSERT INTO service_delegations (
+    service_role_id,
+    project_id,
+    env,
+    wrapped_pmk,
+    wrap_nonce,
+    wrap_ephemeral_pub,
+    delegated_by
+)
+VALUES (
+           $1,  -- service_role_id
+           $2,  -- project_id
+           $3,  -- env
+           $4,  -- wrapped_pmk
+           $5,  -- wrap_nonce
+           $6,  -- wrap_ephemeral_pub (admin_eph_pub)
+           $7   -- delegated_by (admin user id)
+       )
+RETURNING
+service_role_id,
+project_id,
+env,
+created_at;
+
+
+-- name: HasAccess :one
+SELECT service_role_id FROM service_delegations
+WHERE service_role_id = $1
+  AND project_id = $2
+  AND env = $3;

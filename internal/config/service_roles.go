@@ -48,3 +48,20 @@ type ServiceRoleDeleteRequest struct {
 type ServiceRoleDeleteResponse struct {
 	Message string `json:"message"`
 }
+
+// ServiceRoleDelegateRequest POST /service_role/delegate
+type ServiceRoleDelegateRequest struct {
+	ServiceRoleId uuid.UUID `json:"service_role_id"`
+
+	ProjectId uuid.UUID `json:"project_id"`
+	EnvName   string    `json:"env_name"`
+
+	WrappedPMK         []byte `json:"wrapped_pmk"`
+	WrapNonce          []byte `json:"wrap_nonce"`
+	EphemeralPublicKey []byte `json:"ephemeral_public_key"`
+
+	DelegatedBy uuid.UUID `json:"delegated_by"`
+}
+type ServiceRoleDelegateResponse struct {
+	Message string `json:"message"`
+}

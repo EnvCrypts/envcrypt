@@ -64,6 +64,7 @@ func ServiceRoleRouter(handler *handlers.Handler) *http.ServeMux {
 	serviceRoleRouter.HandleFunc("POST /get", handler.GetServiceRole)
 	serviceRoleRouter.HandleFunc("POST /create", handler.CreateServiceRole)
 	serviceRoleRouter.HandleFunc("POST /delete", handler.DeleteServiceRole)
+	serviceRoleRouter.HandleFunc("POST /delegate", handler.DelegateAccess)
 
 	return serviceRoleRouter
 }

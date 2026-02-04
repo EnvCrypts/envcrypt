@@ -10,7 +10,7 @@ CREATE TABLE sessions (
       env TEXT NOT NULL DEFAULT 'dev',
 
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      expires_at TIMESTAMP NOT NULL,
+      expires_at TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes'),
 
       github_repo TEXT NOT NULL,   -- e.g. "github:org/repo:main"
 

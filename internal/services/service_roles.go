@@ -85,3 +85,36 @@ func (s *ServiceRoleServices) Delete(ctx context.Context, requestBody config.Ser
 
 	return nil
 }
+
+func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody config.ServiceRoleDelegateRequest) error {
+
+	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
+		UserID:    requestBody.DelegatedBy,
+		ProjectID: requestBody.ProjectId,
+	})
+	if err != nil {
+		return errors.New("user role not found")
+	}
+
+	if projectRole.Role != "admin" {
+		return errors.New("user is not an admin")
+	}
+	if projectRole.IsRevoked == true {
+		return errors.New("user access is revoked")
+	}
+
+	_, err = s.q.DelegateAccess(ctx, database.DelegateAccessParams{
+		ServiceRoleID:    requestBody.ServiceRoleId,
+		ProjectID:        requestBody.ProjectId,
+		Env:              requestBody.EnvName,
+		WrappedPmk:       requestBody.WrappedPMK,
+		WrapNonce:        requestBody.WrapNonce,
+		WrapEphemeralPub: requestBody.EphemeralPublicKey,
+		DelegatedBy:      requestBody.DelegatedBy,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

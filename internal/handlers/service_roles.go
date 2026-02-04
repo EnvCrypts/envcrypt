@@ -63,5 +63,26 @@ func (handler *Handler) DeleteServiceRole(w http.ResponseWriter, r *http.Request
 	responseBody := config.ServiceRoleDeleteResponse{
 		Message: "Service role deleted!",
 	}
-	helpers.WriteResponse(w, http.StatusNoContent, responseBody)
+	helpers.WriteResponse(w, http.StatusOK, responseBody)
+}
+
+func (handler *Handler) DelegateAccess(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ServiceRoleDelegateRequest
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	err = handler.Services.ServiceRoles.DelegateAccess(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	responseBody := config.ServiceRoleDelegateResponse{
+		Message: "Service role delegated access!",
+	}
+	helpers.WriteResponse(w, http.StatusOK, responseBody)
 }
