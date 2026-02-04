@@ -1,0 +1,67 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/helpers"
+)
+
+func (handler *Handler) GetServiceRole(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ServiceRoleGetRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	responseBody, err := handler.Services.ServiceRoles.Get(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusCreated, responseBody)
+}
+
+func (handler *Handler) CreateServiceRole(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ServiceRoleCreateRequest
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	responseBody, err := handler.Services.ServiceRoles.Create(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusCreated, responseBody)
+}
+
+func (handler *Handler) DeleteServiceRole(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ServiceRoleDeleteRequest
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	err = handler.Services.ServiceRoles.Delete(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	responseBody := config.ServiceRoleDeleteResponse{
+		Message: "Service role deleted!",
+	}
+	helpers.WriteResponse(w, http.StatusNoContent, responseBody)
+}

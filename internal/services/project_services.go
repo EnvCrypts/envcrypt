@@ -25,7 +25,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
-			return errors.New("project already exists")
+			return errors.New("project with this name already exists")
 		}
 		return err
 	}

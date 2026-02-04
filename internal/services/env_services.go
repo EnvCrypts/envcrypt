@@ -15,7 +15,7 @@ type EnvServices struct {
 	q *database.Queries
 }
 
-func NewEnvServices(q *database.Queries) *EnvServices {
+func NewEnvService(q *database.Queries) *EnvServices {
 	return &EnvServices{
 		q: q,
 	}

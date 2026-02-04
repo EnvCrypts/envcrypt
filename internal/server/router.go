@@ -17,6 +17,7 @@ func NewRouter(dbQueries *database.Queries) *http.ServeMux {
 	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler)))
 	router.Handle("/projects/", http.StripPrefix("/projects", ProjectRouter(handler)))
 	router.Handle("/env/", http.StripPrefix("/env", EnvRouter(handler)))
+	router.Handle("/service_role/", http.StripPrefix("/service_role", ServiceRoleRouter(handler)))
 
 	return router
 }
@@ -55,4 +56,14 @@ func EnvRouter(handler *handlers.Handler) *http.ServeMux {
 	envRouter.HandleFunc("POST /update", handler.UpdateEnv)
 
 	return envRouter
+}
+
+func ServiceRoleRouter(handler *handlers.Handler) *http.ServeMux {
+	serviceRoleRouter := http.NewServeMux()
+
+	serviceRoleRouter.HandleFunc("POST /get", handler.GetServiceRole)
+	serviceRoleRouter.HandleFunc("POST /create", handler.CreateServiceRole)
+	serviceRoleRouter.HandleFunc("POST /delete", handler.DeleteServiceRole)
+
+	return serviceRoleRouter
 }
