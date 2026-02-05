@@ -58,3 +58,6 @@ SELECT service_role_id FROM service_delegations
 WHERE service_role_id = $1
   AND project_id = $2
   AND env = $3;
+
+-- name: GetDelegatedKeys :one
+SELECT * FROM service_delegations WHERE service_role_id = $1 AND project_id = $2 AND env = $3;

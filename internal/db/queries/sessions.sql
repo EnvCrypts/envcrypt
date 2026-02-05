@@ -9,3 +9,6 @@ INSERT INTO sessions (
 VALUES ($1, $2, $3, $4)
 RETURNING id, created_at, expires_at;
 
+-- name: GetSession :one
+SELECT * FROM sessions
+WHERE id = $1;

@@ -18,6 +18,9 @@ DELETE FROM projects WHERE id = $1;
 -- name: GetProject :one
 SELECT * from projects WHERE name = $1 AND created_by = $2;
 
+-- name: GetProjectById :one
+SELECT * from projects WHERE id = $1;
+
 -- name: ListProjectsWithRole :many
 SELECT
     p.id,
@@ -80,9 +83,6 @@ RETURNING *;
 
 -- name: GetProjectWrappedKey :one
 SELECT * FROM project_wrapped_keys WHERE project_id = $1 AND user_id = $2;
-
-
-
 
 
 -- name: AddEnv :one

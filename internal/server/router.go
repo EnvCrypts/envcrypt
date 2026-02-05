@@ -18,6 +18,7 @@ func NewRouter(dbQueries *database.Queries) *http.ServeMux {
 	router.Handle("/projects/", http.StripPrefix("/projects", ProjectRouter(handler)))
 	router.Handle("/env/", http.StripPrefix("/env", EnvRouter(handler)))
 	router.Handle("/service_role/", http.StripPrefix("/service_role", ServiceRoleRouter(handler)))
+	router.Handle("/oidc/", http.StripPrefix("/oidc", OIDCRouter(handler)))
 
 	return router
 }
@@ -65,6 +66,15 @@ func ServiceRoleRouter(handler *handlers.Handler) *http.ServeMux {
 	serviceRoleRouter.HandleFunc("POST /create", handler.CreateServiceRole)
 	serviceRoleRouter.HandleFunc("POST /delete", handler.DeleteServiceRole)
 	serviceRoleRouter.HandleFunc("POST /delegate", handler.DelegateAccess)
+	serviceRoleRouter.HandleFunc("POST /project-keys", handler.GetProjectKeys)
 
 	return serviceRoleRouter
+}
+
+func OIDCRouter(handler *handlers.Handler) *http.ServeMux {
+	oidcRouter := http.NewServeMux()
+
+	oidcRouter.HandleFunc("POST /github", handler.GitHubOIDCLogin)
+
+	return oidcRouter
 }
