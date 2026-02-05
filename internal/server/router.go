@@ -63,10 +63,12 @@ func ServiceRoleRouter(handler *handlers.Handler) *http.ServeMux {
 	serviceRoleRouter := http.NewServeMux()
 
 	serviceRoleRouter.HandleFunc("POST /get", handler.GetServiceRole)
+	serviceRoleRouter.HandleFunc("POST /get/all", handler.ListServiceRoles)
 	serviceRoleRouter.HandleFunc("POST /create", handler.CreateServiceRole)
 	serviceRoleRouter.HandleFunc("POST /delete", handler.DeleteServiceRole)
 	serviceRoleRouter.HandleFunc("POST /delegate", handler.DelegateAccess)
 	serviceRoleRouter.HandleFunc("POST /project-keys", handler.GetProjectKeys)
+	serviceRoleRouter.HandleFunc("POST /perms", handler.GetPerms)
 
 	return serviceRoleRouter
 }

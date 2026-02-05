@@ -9,6 +9,25 @@ import (
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
 
+func (handler *Handler) ListServiceRoles(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ServiceRoleListRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	responseBody, err := handler.Services.ServiceRoles.List(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusCreated, responseBody)
+}
+
 func (handler *Handler) GetServiceRole(w http.ResponseWriter, r *http.Request) {
 	var requestBody config.ServiceRoleGetRequest
 
@@ -98,13 +117,31 @@ func (handler *Handler) GetProjectKeys(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	sid := r.Header.Get("Authorization")
-	sessionID,err := uuid.Parse(sid)
+	sessionID, err := uuid.Parse(sid)
 	if err != nil {
 		helpers.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	responseBody,err := handler.Services.SessionService.GetProjectKeys(r.Context(), sessionID, requestBody)
+	responseBody, err := handler.Services.SessionService.GetProjectKeys(r.Context(), sessionID, requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, responseBody)
+}
+
+func (handler *Handler) GetPerms(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ServiceRolePermsRequest
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	responseBody, err := handler.Services.ServiceRoles.GetPerms(r.Context(), requestBody)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

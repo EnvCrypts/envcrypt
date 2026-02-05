@@ -20,6 +20,30 @@ func NewServiceRoleService(q *database.Queries) *ServiceRoleServices {
 	}
 }
 
+func (s *ServiceRoleServices) List(ctx context.Context, requestBody config.ServiceRoleListRequest) (*config.ServiceRoleListResponse, error) {
+
+	serviceRolesDB, err := s.q.GetServiceRolesByAdmin(ctx, requestBody.CreatedBy)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("no roles found")
+		}
+		return nil, err
+	}
+
+	serviceRoles := make([]config.ServiceRole, len(serviceRolesDB))
+	for i := range serviceRolesDB {
+		serviceRoles[i] = config.ServiceRole{
+			ID:                   serviceRolesDB[i].ID,
+			Name:                 serviceRolesDB[i].Name,
+			ServiceRolePublicKey: serviceRolesDB[i].ServiceRolePublicKey,
+			RepoPrincipal:        serviceRolesDB[i].RepoPrincipal,
+			CreatedAt:            serviceRolesDB[i].CreatedAt,
+			CreatedBy:            serviceRolesDB[i].CreatedBy,
+		}
+	}
+	return &config.ServiceRoleListResponse{ServiceRoles: serviceRoles}, nil
+}
+
 func (s *ServiceRoleServices) Create(ctx context.Context, requestBody config.ServiceRoleCreateRequest) (*config.ServiceRoleCreateResponse, error) {
 
 	serviceRole, err := s.q.CreateServiceRole(ctx, database.CreateServiceRoleParams{
@@ -103,8 +127,13 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 		return errors.New("user access is revoked")
 	}
 
+	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
+	if err != nil {
+		return err
+	}
+
 	_, err = s.q.DelegateAccess(ctx, database.DelegateAccessParams{
-		ServiceRoleID:    requestBody.ServiceRoleId,
+		ServiceRoleID:    serviceRole.ID,
 		ProjectID:        requestBody.ProjectId,
 		Env:              requestBody.EnvName,
 		WrappedPmk:       requestBody.WrappedPMK,
@@ -117,4 +146,23 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 	}
 
 	return nil
+}
+
+func (s *ServiceRoleServices) GetPerms(ctx context.Context, requestBody config.ServiceRolePermsRequest) (*config.ServiceRolePermsResponse, error) {
+
+	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
+	if err != nil {
+		return nil, err
+	}
+
+	projectDelegated, err := s.q.GetDelegation(ctx, serviceRole.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config.ServiceRolePermsResponse{
+		ProjectID:   projectDelegated.ProjectID,
+		ProjectName: projectDelegated.ProjectName,
+		Env:         projectDelegated.Env,
+	}, nil
 }

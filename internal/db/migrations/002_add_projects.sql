@@ -9,7 +9,7 @@ CREATE TABLE projects (
 
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-      UNIQUE (name)
+      UNIQUE (name, created_by)
 );
 
 

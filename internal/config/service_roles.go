@@ -17,6 +17,14 @@ type ServiceRole struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// ServiceRoleListRequest POST /service_role/list
+type ServiceRoleListRequest struct {
+	CreatedBy uuid.UUID `json:"created_by"`
+}
+type ServiceRoleListResponse struct {
+	ServiceRoles []ServiceRole `json:"services"`
+}
+
 // ServiceRoleCreateRequest POST /service_role/create
 type ServiceRoleCreateRequest struct {
 	ServiceRoleName string `json:"service_role_name"`
@@ -33,7 +41,7 @@ type ServiceRoleCreateResponse struct {
 
 // ServiceRoleGetRequest POST /service_role/get
 type ServiceRoleGetRequest struct {
-	RepoPrincipal string `json:"repo-principal"`
+	RepoPrincipal string `json:"repo_principal"`
 }
 type ServiceRoleGetResponse struct {
 	ServiceRole ServiceRole `json:"service_role"`
@@ -42,16 +50,26 @@ type ServiceRoleGetResponse struct {
 
 // ServiceRoleDeleteRequest POST /service_role/delete
 type ServiceRoleDeleteRequest struct {
-	ServiceRoleId uuid.UUID `json:"service_role_name"`
-	CreatedBy     uuid.UUID `json:"created-by"`
+	ServiceRoleId uuid.UUID `json:"service_role_id"`
+	CreatedBy     uuid.UUID `json:"created_by"`
 }
 type ServiceRoleDeleteResponse struct {
 	Message string `json:"message"`
 }
 
+// ServiceRolePermsRequest POST /service_role/perms
+type ServiceRolePermsRequest struct {
+	RepoPrincipal string `json:"repo_principal"`
+}
+type ServiceRolePermsResponse struct {
+	ProjectID   uuid.UUID `json:"project_id"`
+	ProjectName string    `json:"project_name"`
+	Env         string    `json:"env"`
+}
+
 // ServiceRoleDelegateRequest POST /service_role/delegate
 type ServiceRoleDelegateRequest struct {
-	ServiceRoleId uuid.UUID `json:"service_role_id"`
+	RepoPrincipal string `json:"repo_principal"`
 
 	ProjectId uuid.UUID `json:"project_id"`
 	EnvName   string    `json:"env_name"`
