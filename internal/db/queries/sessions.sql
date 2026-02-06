@@ -11,4 +11,4 @@ RETURNING id, created_at, expires_at;
 
 -- name: GetSession :one
 SELECT * FROM sessions
-WHERE id = $1;
+WHERE id = $1 AND expires_at > NOW();
