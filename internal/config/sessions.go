@@ -18,10 +18,9 @@ type ServiceRollProjectKeyResponse struct {
 
 // GithubOIDCLoginRequest POST /oidc/github
 type GithubOIDCLoginRequest struct {
-	IDToken   string    `json:"id_token"`
-	ProjectID uuid.UUID `json:"project_id"`
-	Env       string    `json:"env"`
+	IDToken string `json:"id_token"`
 }
 type GithubOIDCLoginResponse struct {
 	SessionID uuid.UUID `json:"session_id"`
+	ProjectID uuid.UUID `json:"project_id"`
 }

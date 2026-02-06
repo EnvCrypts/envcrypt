@@ -94,11 +94,9 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sessionID, err := handler.Services.SessionService.Create(
+	sessionID, projectID, err := handler.Services.SessionService.Create(
 		r.Context(),
-		req.ProjectID,
 		repoPrincipal,
-		req.Env,
 	)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -107,6 +105,7 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 
 	resp := config.GithubOIDCLoginResponse{
 		SessionID: *sessionID,
+		ProjectID: *projectID,
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, resp)
