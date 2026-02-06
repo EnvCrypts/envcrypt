@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
@@ -116,14 +115,7 @@ func (handler *Handler) GetProjectKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	sid := r.Header.Get("Authorization")
-	sessionID, err := uuid.Parse(sid)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	responseBody, err := handler.Services.SessionService.GetProjectKeys(r.Context(), sessionID, requestBody)
+	responseBody, err := handler.Services.SessionService.GetProjectKeys(r.Context(), requestBody)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

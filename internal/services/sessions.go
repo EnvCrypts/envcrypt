@@ -54,12 +54,12 @@ func (s *SessionService) Create(ctx context.Context, projectId uuid.UUID, envNam
 	return &session.ID, nil
 }
 
-func (s *SessionService) GetProjectKeys(ctx context.Context, sessionID uuid.UUID, requestBody config.ServiceRollProjectKeyRequest) (*config.ServiceRollProjectKeyResponse, error) {
+func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.ServiceRollProjectKeyRequest) (*config.ServiceRollProjectKeyResponse, error) {
 
-	session, err := s.q.GetSession(ctx, sessionID)
+	session, err := s.q.GetSession(ctx, requestBody.SessionID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New(fmt.Sprintf("failed to get session for %s", sessionID))
+			return nil, errors.New(fmt.Sprintf("failed to get session for %s", requestBody.SessionID))
 		}
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, sessionID uuid.UUID
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New(fmt.Sprintf("failed to get project keys for %s", sessionID))
+			return nil, errors.New(fmt.Sprintf("failed to get project keys for %s", requestBody.SessionID))
 		}
 		return nil, err
 	}

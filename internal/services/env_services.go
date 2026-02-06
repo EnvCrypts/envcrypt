@@ -205,3 +205,21 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 
 	return nil
 }
+
+func (s *EnvServices) GetEnvForCI(ctx context.Context, requestBody config.GetEnvForCIRequest) (*config.GetEnvForCIResponse, error) {
+	env, err := s.q.GetLatestEnv(ctx, database.GetLatestEnvParams{
+		ProjectID: requestBody.ProjectId,
+		EnvName:   requestBody.EnvName,
+	})
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("env not found")
+		}
+		return nil, err
+	}
+
+	return &config.GetEnvForCIResponse{
+		CipherText: env.Ciphertext,
+		Nonce:      env.Nonce,
+	}, nil
+}

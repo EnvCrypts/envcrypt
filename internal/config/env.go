@@ -64,3 +64,12 @@ type UpdateEnvRequest struct {
 type UpdateEnvResponse struct {
 	Message string `json:"message"`
 }
+
+type GetEnvForCIRequest struct {
+	ProjectId uuid.UUID `json:"project_id"`
+	EnvName   string    `json:"env_name"`
+}
+type GetEnvForCIResponse struct {
+	CipherText []byte `json:"cipher_text"`
+	Nonce      []byte `json:"nonce"`
+}

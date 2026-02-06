@@ -94,3 +94,22 @@ func (handler *Handler) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 		Message: "env updated successfully",
 	})
 }
+
+func (handler *Handler) GetCIEnv(w http.ResponseWriter, r *http.Request) {
+
+	var requestBody config.GetEnvForCIRequest
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	responseBody, err := handler.Services.Env.GetEnvForCI(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, responseBody)
+}

@@ -6,6 +6,7 @@ import "github.com/google/uuid"
 
 type ServiceRollProjectKeyRequest struct {
 	ProjectID uuid.UUID `json:"project_id"`
+	SessionID uuid.UUID `json:"session_id"`
 	Env       string    `json:"env"`
 }
 type ServiceRollProjectKeyResponse struct {
