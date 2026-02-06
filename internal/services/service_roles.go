@@ -41,6 +41,7 @@ func (s *ServiceRoleServices) List(ctx context.Context, requestBody config.Servi
 			CreatedBy:            serviceRolesDB[i].CreatedBy,
 		}
 	}
+
 	return &config.ServiceRoleListResponse{ServiceRoles: serviceRoles}, nil
 }
 
@@ -76,6 +77,9 @@ func (s *ServiceRoleServices) Get(ctx context.Context, requestBody config.Servic
 
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("service role not found")
+		}
 		return nil, err
 	}
 
@@ -96,6 +100,9 @@ func (s *ServiceRoleServices) Delete(ctx context.Context, requestBody config.Ser
 
 	serviceRole, err := s.q.GetServiceRoleById(ctx, requestBody.ServiceRoleId)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("service role not found")
+		}
 		return err
 	}
 	if requestBody.CreatedBy != serviceRole.CreatedBy {
@@ -117,7 +124,10 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 		ProjectID: requestBody.ProjectId,
 	})
 	if err != nil {
-		return errors.New("user role not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("user role not found")
+		}
+		return err
 	}
 
 	if projectRole.Role != "admin" {
@@ -129,6 +139,9 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("service role not found")
+		}
 		return err
 	}
 
@@ -142,6 +155,9 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 		DelegatedBy:      requestBody.DelegatedBy,
 	})
 	if err != nil {
+		if dberrors.IsUniqueViolation(err) {
+			return errors.New("service role already delegated to a project")
+		}
 		return err
 	}
 
@@ -152,11 +168,17 @@ func (s *ServiceRoleServices) GetPerms(ctx context.Context, requestBody config.S
 
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("service role not found")
+		}
 		return nil, err
 	}
 
 	projectDelegated, err := s.q.GetDelegation(ctx, serviceRole.ID)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("delegation not found")
+		}
 		return nil, err
 	}
 

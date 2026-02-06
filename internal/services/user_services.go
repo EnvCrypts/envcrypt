@@ -75,6 +75,9 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user not found")
+		}
 		log.Print(err.Error())
 		return nil, err
 	}
@@ -110,7 +113,10 @@ func (s *UserService) GetUserPublicKey(ctx context.Context, email string) (uuid.
 
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
-		return uuid.Nil, nil, errors.New("user not found")
+		if dberrors.IsNoRows(err) {
+			return uuid.Nil, nil, errors.New("user not found")
+		}
+		return uuid.Nil, nil, err
 	}
 
 	return user.ID, user.UserPublicKey, nil

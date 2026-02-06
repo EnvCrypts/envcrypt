@@ -83,12 +83,18 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 		CreatedBy: requestBody.UserId,
 	})
 	if err != nil {
-		return errors.New("project not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("project not found")
+		}
+		return err
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: project.CreatedBy, ProjectID: project.ID})
 	if err != nil {
-		return errors.New("project role not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("project role not found")
+		}
+		return err
 	}
 	if projectRole.IsRevoked == true {
 		return errors.New("user access is revoked")
@@ -113,12 +119,18 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		CreatedBy: requestBody.AdminId,
 	})
 	if err != nil {
-		return errors.New("project not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("project not found")
+		}
+		return err
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
 	if err != nil {
-		return errors.New("user role not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("user role not found")
+		}
+		return err
 	}
 
 	if projectRole.Role != "admin" {
@@ -129,9 +141,6 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	}
 
 	var role = "member"
-	if requestBody.Role == "admin" {
-		role = "admin"
-	}
 	_, err = s.q.AddUserToProject(ctx, database.AddUserToProjectParams{
 		ProjectID: project.ID,
 		UserID:    requestBody.UserId,
@@ -165,12 +174,18 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 		CreatedBy: requestBody.AdminId,
 	})
 	if err != nil {
-		return errors.New("project not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("project not found")
+		}
+		return err
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
 	if err != nil {
-		return errors.New("user role not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("user role not found")
+		}
+		return err
 	}
 
 	if projectRole.Role != "admin" {
@@ -182,7 +197,10 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 
 	user, err := s.q.GetUserByEmail(ctx, requestBody.UserEmail)
 	if err != nil {
-		return errors.New("user not found")
+		if dberrors.IsNoRows(err) {
+			return errors.New("user not found")
+		}
+		return err
 	}
 
 	err = s.q.SetUserAccess(ctx, database.SetUserAccessParams{
@@ -204,7 +222,10 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 		CreatedBy: requestBody.UserId,
 	})
 	if err != nil {
-		return nil, errors.New("project not found")
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("project not found")
+		}
+		return nil, err
 	}
 
 	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
@@ -212,7 +233,10 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 		UserID:    requestBody.UserId,
 	})
 	if err != nil {
-		return nil, errors.New("project wrapped key not found")
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("project wrapped key not found")
+		}
+		return nil, err
 	}
 
 	var response = &config.GetUserProjectResponse{
@@ -231,7 +255,10 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 		UserID: requestBody.UserId,
 	})
 	if err != nil {
-		return nil, errors.New("project not found")
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("project not found")
+		}
+		return nil, err
 	}
 
 	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
@@ -239,7 +266,10 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 		UserID:    requestBody.UserId,
 	})
 	if err != nil {
-		return nil, errors.New("project wrapped key not found")
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("project wrapped key not found")
+		}
+		return nil, err
 	}
 
 	var response = &config.GetMemberProjectResponse{

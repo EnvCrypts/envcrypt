@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
 
 type SessionService struct {
@@ -22,7 +23,10 @@ func (s *SessionService) Create(ctx context.Context, projectId uuid.UUID, envNam
 
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, repoPrincipal)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("service role for %s not found", repoPrincipal))
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New(fmt.Sprintf("service role for %s not found", repoPrincipal))
+		}
+		return nil, err
 	}
 
 	_, err = s.q.HasAccess(ctx, database.HasAccessParams{
@@ -31,7 +35,10 @@ func (s *SessionService) Create(ctx context.Context, projectId uuid.UUID, envNam
 		Env:           envName,
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("access denied for %s", envName))
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New(fmt.Sprintf("access denied for %s", envName))
+		}
+		return nil, err
 	}
 
 	session, err := s.q.CreateSession(ctx, database.CreateSessionParams{
@@ -51,7 +58,10 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, sessionID uuid.UUID
 
 	session, err := s.q.GetSession(ctx, sessionID)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get session for %s", sessionID))
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New(fmt.Sprintf("failed to get session for %s", sessionID))
+		}
+		return nil, err
 	}
 
 	if (session.ProjectID != requestBody.ProjectID) || (session.Env != requestBody.Env) {
@@ -64,7 +74,10 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, sessionID uuid.UUID
 		ServiceRoleID: session.ServiceRoleID,
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get project keys for %s", sessionID))
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New(fmt.Sprintf("failed to get project keys for %s", sessionID))
+		}
+		return nil, err
 	}
 
 	return &config.ServiceRollProjectKeyResponse{

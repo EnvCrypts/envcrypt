@@ -25,6 +25,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 
 	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user not found")
+		}
 		log.Println("Error getting user")
 		return nil, err
 	}
@@ -35,7 +38,10 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 		IsRevoked: false,
 	})
 	if err != nil {
-		return nil, errors.New("user doesn't have permission to get env")
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user doesn't have permission to get env")
+		}
+		return nil, err
 	}
 
 	var env database.EnvVersion
@@ -46,6 +52,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 			Version:   *requestBody.Version,
 		})
 		if err != nil {
+			if dberrors.IsNoRows(err) {
+				return nil, errors.New("env not found")
+			}
 			log.Print(err.Error())
 			return nil, err
 		}
@@ -55,6 +64,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 			EnvName:   requestBody.EnvName,
 		})
 		if err != nil {
+			if dberrors.IsNoRows(err) {
+				return nil, errors.New("env not found")
+			}
 			log.Print(err.Error())
 			return nil, err
 		}
@@ -69,6 +81,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.GetEnvVersionsRequest) (*config.GetEnvVersionsResponse, error) {
 	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user not found")
+		}
 		log.Println("Error getting user")
 		return nil, err
 	}
@@ -79,7 +94,10 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 		IsRevoked: false,
 	})
 	if err != nil {
-		return nil, errors.New("user doesn't have permission to get env")
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user doesn't have permission to get env")
+		}
+		return nil, err
 	}
 
 	envVersions, err := s.q.GetEnvVersions(ctx, database.GetEnvVersionsParams{
@@ -118,7 +136,10 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 		IsRevoked: false,
 	})
 	if err != nil {
-		return errors.New("user doesn't have permission to store env")
+		if dberrors.IsNoRows(err) {
+			return errors.New("user doesn't have permission to store env")
+		}
+		return err
 	}
 
 	metadata, err := json.Marshal(requestBody.Metadata)
@@ -147,6 +168,9 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEnvRequest) error {
 	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
 	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("user not found")
+		}
 		return err
 	}
 
@@ -156,7 +180,10 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 		IsRevoked: false,
 	})
 	if err != nil {
-		return errors.New("user doesn't have permission to update env")
+		if dberrors.IsNoRows(err) {
+			return errors.New("user doesn't have permission to update env")
+		}
+		return err
 	}
 
 	metadata, err := json.Marshal(requestBody.Metadata)

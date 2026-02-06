@@ -62,7 +62,7 @@ func (handler *Handler) CreateServiceRole(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	helpers.WriteResponse(w, http.StatusCreated, responseBody)
+	helpers.WriteResponse(w, http.StatusCreated, *responseBody)
 }
 
 func (handler *Handler) DeleteServiceRole(w http.ResponseWriter, r *http.Request) {
