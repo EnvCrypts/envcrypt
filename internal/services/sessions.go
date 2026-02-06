@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
@@ -44,6 +45,7 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 		GithubRepo:    repoPrincipal,
 	})
 	if err != nil {
+		log.Println(err)
 		return nil, nil, errors.New(fmt.Sprintf("failed to create session for %s/%s", projectDelegation.ProjectName, projectDelegation.Env))
 	}
 
