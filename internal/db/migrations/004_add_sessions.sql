@@ -4,20 +4,26 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE sessions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-      service_role_id UUID NOT NULL REFERENCES service_roles(id) ON DELETE CASCADE,
+      identity_type TEXT NOT NULL CHECK (identity_type IN ('user', 'ci')),
 
-      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      env TEXT NOT NULL DEFAULT 'dev',
+      user_id UUID NULL REFERENCES users(id) ON DELETE CASCADE,
+
+      service_role_id UUID NULL REFERENCES service_roles(id) ON DELETE CASCADE,
+      project_id UUID NULL REFERENCES projects(id) ON DELETE CASCADE,
+      env TEXT NULL,
 
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      expires_at TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes'),
+      expires_at TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '10 minutes'),
 
-      github_repo TEXT NOT NULL,   -- e.g. "github:org/repo:main"
-
-      UNIQUE (service_role_id, project_id, env)
+      github_repo TEXT NULL   -- only for CI
 );
 
-CREATE INDEX idx_sessions_lookup ON sessions(service_role_id, project_id, env);
+
+CREATE INDEX idx_sessions_ci_lookup
+    ON sessions(service_role_id, project_id, env);
+
+CREATE INDEX idx_sessions_user_lookup
+    ON sessions(user_id);
 
 -- +goose Down
 DROP TABLE sessions;

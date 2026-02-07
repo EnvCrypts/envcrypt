@@ -34,9 +34,20 @@ func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accessToken, refreshToken, err := handler.Services.SessionService.Refresh(r.Context(), user.Id)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	var response = config.CreateResponseBody{
 		Message: "User created successfully",
 		User:    *user,
+		Session: config.SessionBody{
+			AccessToken:  *accessToken,
+			RefreshToken: *refreshToken,
+			ExpiresIn:    600,
+		},
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, response)
@@ -58,9 +69,20 @@ func (handler *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accessToken, refreshToken, err := handler.Services.SessionService.Refresh(r.Context(), user.Id)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	var response = config.LoginResponseBody{
 		Message: "Login successful",
 		User:    *user,
+		Session: config.SessionBody{
+			AccessToken:  *accessToken,
+			RefreshToken: *refreshToken,
+			ExpiresIn:    600,
+		},
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, response)
@@ -88,5 +110,53 @@ func (handler *Handler) GetUserPublicKey(w http.ResponseWriter, r *http.Request)
 		Message:   "User public key successfully retrieved",
 	}
 
+	helpers.WriteResponse(w, http.StatusOK, response)
+}
+
+func (handler *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+
+	var requestBody config.RefreshRequestBody
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	accessToken, refreshToken, err := handler.Services.SessionService.Refresh(r.Context(), requestBody.UserID)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var response = config.RefreshResponseBody{
+		Message: "Refresh successful",
+		Session: config.SessionBody{
+			AccessToken:  *accessToken,
+			RefreshToken: *refreshToken,
+			ExpiresIn:    600,
+		},
+	}
+	helpers.WriteResponse(w, http.StatusOK, response)
+}
+
+func (handler *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.LogoutRequestBody
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	err = handler.Services.Users.Logout(r.Context(), requestBody.UserID)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var response = config.LogoutResponseBody{
+		Message: "Logout successful",
+	}
 	helpers.WriteResponse(w, http.StatusOK, response)
 }

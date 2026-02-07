@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -88,8 +87,6 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 		helpers.WriteError(w, http.StatusUnauthorized, "invalid OIDC token")
 		return
 	}
-
-	log.Print(claims)
 
 	repoPrincipal := claims.Subject
 	if repoPrincipal == "" {

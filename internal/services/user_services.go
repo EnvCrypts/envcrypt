@@ -121,3 +121,17 @@ func (s *UserService) GetUserPublicKey(ctx context.Context, email string) (uuid.
 
 	return user.ID, user.UserPublicKey, nil
 }
+
+func (s *UserService) Logout(ctx context.Context, userId uuid.UUID) error {
+
+	err := s.q.DeleteRefreshTokens(ctx, userId)
+	if err != nil {
+		return err
+	}
+	err = s.q.DeleteUserAccessTokens(ctx, uuid.NullUUID{UUID: userId, Valid: true})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

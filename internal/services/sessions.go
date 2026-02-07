@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
@@ -38,18 +38,51 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 		return nil, nil, err
 	}
 
-	session, err := s.q.CreateSession(ctx, database.CreateSessionParams{
-		ProjectID:     projectDelegation.ProjectID,
-		Env:           projectDelegation.Env,
-		ServiceRoleID: serviceRole.ID,
-		GithubRepo:    repoPrincipal,
+	session, err := s.q.CreateCISession(ctx, database.CreateCISessionParams{
+		ProjectID:     uuid.NullUUID{UUID: projectDelegation.ProjectID, Valid: true},
+		Env:           sql.NullString{String: projectDelegation.Env, Valid: true},
+		ServiceRoleID: uuid.NullUUID{UUID: serviceRole.ID, Valid: true},
+		GithubRepo:    sql.NullString{String: repoPrincipal, Valid: true},
 	})
+
 	if err != nil {
-		log.Println(err)
 		return nil, nil, errors.New(fmt.Sprintf("failed to create session for %s/%s", projectDelegation.ProjectName, projectDelegation.Env))
 	}
 
 	return &session.ID, &projectDelegation.ProjectID, nil
+}
+
+func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.UUID, *uuid.UUID, error) {
+
+	var accessToken, refreshToken uuid.UUID
+
+	refreshTokenDB, err := s.q.RefreshToken(ctx, userID)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			refreshTokenDB, err := s.q.CreateRefreshToken(ctx, userID)
+			if err != nil {
+				if dberrors.IsUniqueViolation(err) {
+					return nil, nil, errors.New(fmt.Sprintf("refresh token for user %s already exists", userID))
+				}
+				return nil, nil, err
+			}
+			refreshToken = refreshTokenDB.ID
+		} else {
+			return nil, nil, err
+		}
+	}
+	refreshToken = refreshTokenDB.ID
+
+	accessTokenDB, err := s.q.CreateUserSession(ctx, uuid.NullUUID{UUID: userID, Valid: true})
+	if err != nil {
+		if dberrors.IsUniqueViolation(err) {
+			return nil, nil, errors.New(fmt.Sprintf("user session for %s already exists", userID))
+		}
+		return nil, nil, err
+	}
+	accessToken = accessTokenDB.ID
+
+	return &accessToken, &refreshToken, nil
 }
 
 func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.ServiceRollProjectKeyRequest) (*config.ServiceRollProjectKeyResponse, error) {
@@ -62,14 +95,25 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.
 		return nil, err
 	}
 
-	if (session.ProjectID != requestBody.ProjectID) || (session.Env != requestBody.Env) {
+	var sessionProjectID, sessionServiceRoleID uuid.UUID
+	var sessionEnv string
+
+	if session.ProjectID.Valid && session.ServiceRoleID.Valid && session.Env.Valid {
+		sessionProjectID = session.ProjectID.UUID
+		sessionServiceRoleID = session.ServiceRoleID.UUID
+		sessionEnv = session.Env.String
+	} else {
+		return nil, errors.New(fmt.Sprintf("failed to get session for %s", requestBody.SessionID))
+	}
+
+	if (sessionProjectID != requestBody.ProjectID) || (sessionEnv != requestBody.Env) {
 		return nil, errors.New(fmt.Sprintf("project id and env are not the same"))
 	}
 
 	projectKeys, err := s.q.GetDelegatedKeys(ctx, database.GetDelegatedKeysParams{
-		ProjectID:     session.ProjectID,
-		Env:           session.Env,
-		ServiceRoleID: session.ServiceRoleID,
+		ProjectID:     sessionProjectID,
+		Env:           sessionEnv,
+		ServiceRoleID: sessionServiceRoleID,
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
@@ -79,9 +123,21 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.
 	}
 
 	return &config.ServiceRollProjectKeyResponse{
-		ProjectId:          session.ProjectID,
+		ProjectId:          sessionProjectID,
 		WrappedPMK:         projectKeys.WrappedPmk,
 		WrapNonce:          projectKeys.WrapNonce,
 		EphemeralPublicKey: projectKeys.WrapEphemeralPub,
 	}, nil
+}
+
+func (s *SessionService) GetSession(ctx context.Context, sessionID uuid.UUID) error {
+	_, err := s.q.GetSession(ctx, sessionID)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New(fmt.Sprintf("failed to get session for %s", sessionID))
+		}
+		return err
+	}
+
+	return nil
 }
