@@ -66,6 +66,7 @@ func ServiceRoleRouter(handler *handlers.Handler) *http.ServeMux {
 	serviceRoleRouter := http.NewServeMux()
 
 	serviceRoleRouter.Handle("POST /get", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetServiceRole)))
+	serviceRoleRouter.Handle("POST /create", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.CreateServiceRole)))
 	serviceRoleRouter.Handle("POST /get/all", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.ListServiceRoles)))
 	serviceRoleRouter.Handle("POST /delete", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.DeleteServiceRole)))
 	serviceRoleRouter.Handle("POST /delegate", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.DelegateAccess)))

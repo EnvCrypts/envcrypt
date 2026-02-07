@@ -19,16 +19,16 @@ func AuthMiddleware(sessionService *services.SessionService, next http.Handler) 
 			return
 		}
 
-		log.Print(sessionID)
-
 		sid, err := uuid.Parse(sessionID)
 		if err != nil {
 			helpers.WriteError(w, http.StatusUnauthorized, "Session ID is invalid")
+			log.Print(err)
 			return
 		}
 
 		if err := sessionService.GetSession(r.Context(), sid); err != nil {
 			helpers.WriteError(w, http.StatusUnauthorized, "Session ID is invalid or expired")
+			log.Print(err)
 			return
 		}
 
