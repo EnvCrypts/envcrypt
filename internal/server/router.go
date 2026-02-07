@@ -16,7 +16,7 @@ func NewRouter(dbQueries *database.Queries) *http.ServeMux {
 
 	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler)))
 	router.Handle("/projects/", http.StripPrefix("/projects", AuthMiddleware(service.SessionService, ProjectRouter(handler))))
-	router.Handle("/env/", http.StripPrefix("/env", AuthMiddleware(service.SessionService, EnvRouter(handler))))
+	router.Handle("/env/", http.StripPrefix("/env", EnvRouter(handler)))
 	router.Handle("/service_role/", http.StripPrefix("/service_role", ServiceRoleRouter(handler)))
 	router.Handle("/oidc/", http.StripPrefix("/oidc", OIDCRouter(handler)))
 
@@ -53,11 +53,12 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 func EnvRouter(handler *handlers.Handler) *http.ServeMux {
 	envRouter := http.NewServeMux()
 
-	envRouter.HandleFunc("POST /search", handler.GetEnv)
+	envRouter.Handle("POST /search", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetEnv)))
+	envRouter.Handle("POST /search/all", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetEnvVersions)))
+	envRouter.Handle("POST /create", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.AddEnv)))
+	envRouter.Handle("POST /update", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.UpdateEnv)))
+
 	envRouter.HandleFunc("POST /ci/search", handler.GetCIEnv)
-	envRouter.HandleFunc("POST /search/all", handler.GetEnvVersions)
-	envRouter.HandleFunc("POST /create", handler.AddEnv)
-	envRouter.HandleFunc("POST /update", handler.UpdateEnv)
 
 	return envRouter
 }
