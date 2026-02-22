@@ -73,8 +73,11 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 	}
 
 	return &config.GetEnvResponse{
-		CipherText: env.Ciphertext,
-		Nonce:      env.Nonce,
+		CipherText:        env.Ciphertext,
+		Nonce:             env.Nonce,
+		WrappedDEK:        env.WrappedDek,
+		DekNonce:          env.DekNonce,
+		EncryptionVersion: env.EncryptionVersion,
 	}, nil
 }
 
@@ -118,10 +121,13 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 		}
 
 		envResponses = append(envResponses, config.EnvResponse{
-			CipherText: envVersion.Ciphertext,
-			Nonce:      envVersion.Nonce,
-			Version:    envVersion.Version,
-			Metadata:   metadata,
+			CipherText:        envVersion.Ciphertext,
+			Nonce:             envVersion.Nonce,
+			WrappedDEK:        envVersion.WrappedDek,
+			DekNonce:          envVersion.DekNonce,
+			EncryptionVersion: envVersion.EncryptionVersion,
+			Version:           envVersion.Version,
+			Metadata:          metadata,
 		})
 	}
 
@@ -148,12 +154,15 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	}
 
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
-		ProjectID:  requestBody.ProjectId,
-		EnvName:    requestBody.EnvName,
-		Ciphertext: requestBody.CipherText,
-		Nonce:      requestBody.Nonce,
-		CreatedBy:  requestBody.UserId,
-		Metadata:   metadata,
+		ProjectID:         requestBody.ProjectId,
+		EnvName:           requestBody.EnvName,
+		Ciphertext:        requestBody.CipherText,
+		Nonce:             requestBody.Nonce,
+		WrappedDek:        requestBody.WrappedDEK,
+		DekNonce:          requestBody.DekNonce,
+		EncryptionVersion: requestBody.EncryptionVersion,
+		CreatedBy:         requestBody.UserId,
+		Metadata:          metadata,
 	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
@@ -192,12 +201,15 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	}
 
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
-		ProjectID:  requestBody.ProjectId,
-		EnvName:    requestBody.EnvName,
-		Ciphertext: requestBody.CipherText,
-		Nonce:      requestBody.Nonce,
-		CreatedBy:  user.ID,
-		Metadata:   metadata,
+		ProjectID:         requestBody.ProjectId,
+		EnvName:           requestBody.EnvName,
+		Ciphertext:        requestBody.CipherText,
+		Nonce:             requestBody.Nonce,
+		WrappedDek:        requestBody.WrappedDEK,
+		DekNonce:          requestBody.DekNonce,
+		EncryptionVersion: requestBody.EncryptionVersion,
+		CreatedBy:         user.ID,
+		Metadata:          metadata,
 	})
 	if err != nil {
 		return err
@@ -219,7 +231,10 @@ func (s *EnvServices) GetEnvForCI(ctx context.Context, requestBody config.GetEnv
 	}
 
 	return &config.GetEnvForCIResponse{
-		CipherText: env.Ciphertext,
-		Nonce:      env.Nonce,
+		CipherText:        env.Ciphertext,
+		Nonce:             env.Nonce,
+		WrappedDEK:        env.WrappedDek,
+		DekNonce:          env.DekNonce,
+		EncryptionVersion: env.EncryptionVersion,
 	}, nil
 }

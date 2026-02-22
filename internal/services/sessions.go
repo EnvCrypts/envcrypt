@@ -124,7 +124,7 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.
 
 	return &config.ServiceRollProjectKeyResponse{
 		ProjectId:          sessionProjectID,
-		WrappedPMK:         projectKeys.WrappedPmk,
+		WrappedPRK:         projectKeys.WrappedPrk,
 		WrapNonce:          projectKeys.WrapNonce,
 		EphemeralPublicKey: projectKeys.WrapEphemeralPub,
 	}, nil

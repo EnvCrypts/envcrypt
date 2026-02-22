@@ -39,10 +39,10 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		return err
 	}
 
-	_, err = s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
+	_, err = s.q.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
 		ProjectID:        project.ID,
 		UserID:           createBody.UserId,
-		WrappedPmk:       createBody.WrappedPMK,
+		WrappedPrk:       createBody.WrappedPRK,
 		WrapNonce:        createBody.WrapNonce,
 		WrapEphemeralPub: createBody.EphemeralPublicKey,
 	})
@@ -153,15 +153,15 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		return errors.New("unable to add user to project")
 	}
 
-	_, err = s.q.AddWrappedPMK(ctx, database.AddWrappedPMKParams{
+	_, err = s.q.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
 		ProjectID:        project.ID,
 		UserID:           requestBody.UserId,
-		WrappedPmk:       requestBody.WrappedPMK,
+		WrappedPrk:       requestBody.WrappedPRK,
 		WrapNonce:        requestBody.WrapNonce,
 		WrapEphemeralPub: requestBody.EphemeralPublicKey,
 	})
 	if err != nil {
-		return errors.New("unable to add wrapped pmk")
+		return errors.New("unable to add wrapped prk")
 	}
 
 	return nil
@@ -241,7 +241,7 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 
 	var response = &config.GetUserProjectResponse{
 		ProjectId:          project.ID,
-		WrappedPMK:         wrappedKey.WrappedPmk,
+		WrappedPRK:         wrappedKey.WrappedPrk,
 		WrapNonce:          wrappedKey.WrapNonce,
 		EphemeralPublicKey: wrappedKey.WrapEphemeralPub,
 	}
@@ -274,7 +274,7 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 
 	var response = &config.GetMemberProjectResponse{
 		ProjectId:          project,
-		WrappedPMK:         wrappedKey.WrappedPmk,
+		WrappedPRK:         wrappedKey.WrappedPrk,
 		WrapNonce:          wrappedKey.WrapNonce,
 		EphemeralPublicKey: wrappedKey.WrapEphemeralPub,
 	}

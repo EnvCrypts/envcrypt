@@ -149,7 +149,7 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 		ServiceRoleID:    serviceRole.ID,
 		ProjectID:        requestBody.ProjectId,
 		Env:              requestBody.EnvName,
-		WrappedPmk:       requestBody.WrappedPMK,
+		WrappedPrk:       requestBody.WrappedPRK,
 		WrapNonce:        requestBody.WrapNonce,
 		WrapEphemeralPub: requestBody.EphemeralPublicKey,
 		DelegatedBy:      requestBody.DelegatedBy,

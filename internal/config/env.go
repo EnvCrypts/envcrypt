@@ -15,8 +15,11 @@ type GetEnvRequest struct {
 }
 
 type GetEnvResponse struct {
-	CipherText []byte `json:"cipher_text"`
-	Nonce      []byte `json:"nonce"`
+	CipherText        []byte `json:"cipher_text"`
+	Nonce             []byte `json:"nonce"`
+	WrappedDEK        []byte `json:"wrapped_dek,omitempty"`
+	DekNonce          []byte `json:"dek_nonce,omitempty"`
+	EncryptionVersion int32  `json:"encryption_version"`
 }
 
 type GetEnvVersionsRequest struct {
@@ -27,10 +30,13 @@ type GetEnvVersionsRequest struct {
 }
 
 type EnvResponse struct {
-	CipherText []byte   `json:"cipher_text"`
-	Nonce      []byte   `json:"nonce"`
-	Version    int32    `json:"version"`
-	Metadata   Metadata `json:"metadata"`
+	CipherText        []byte   `json:"cipher_text"`
+	Nonce             []byte   `json:"nonce"`
+	WrappedDEK        []byte   `json:"wrapped_dek,omitempty"`
+	DekNonce          []byte   `json:"dek_nonce,omitempty"`
+	EncryptionVersion int32    `json:"encryption_version"`
+	Version           int32    `json:"version"`
+	Metadata          Metadata `json:"metadata"`
 }
 type GetEnvVersionsResponse struct {
 	EnvVersions []EnvResponse `json:"env_versions"`
@@ -39,9 +45,12 @@ type AddEnvRequest struct {
 	ProjectId uuid.UUID `json:"project_id"`
 	UserId    uuid.UUID `json:"user_id"`
 
-	EnvName    string `json:"env_name"`
-	CipherText []byte `json:"cipher_text"`
-	Nonce      []byte `json:"nonce"`
+	EnvName           string `json:"env_name"`
+	CipherText        []byte `json:"cipher_text"`
+	Nonce             []byte `json:"nonce"`
+	WrappedDEK        []byte `json:"wrapped_dek"`
+	DekNonce          []byte `json:"dek_nonce"`
+	EncryptionVersion int32  `json:"encryption_version"`
 
 	Metadata Metadata `json:"metadata"`
 }
@@ -54,9 +63,12 @@ type UpdateEnvRequest struct {
 	ProjectId uuid.UUID `json:"project_id"`
 	Email     string    `json:"user_email"`
 
-	EnvName    string `json:"env_name"`
-	CipherText []byte `json:"cipher_text"`
-	Nonce      []byte `json:"nonce"`
+	EnvName           string `json:"env_name"`
+	CipherText        []byte `json:"cipher_text"`
+	Nonce             []byte `json:"nonce"`
+	WrappedDEK        []byte `json:"wrapped_dek"`
+	DekNonce          []byte `json:"dek_nonce"`
+	EncryptionVersion int32  `json:"encryption_version"`
 
 	Metadata Metadata `json:"metadata"`
 }
@@ -70,6 +82,9 @@ type GetEnvForCIRequest struct {
 	EnvName   string    `json:"env_name"`
 }
 type GetEnvForCIResponse struct {
-	CipherText []byte `json:"cipher_text"`
-	Nonce      []byte `json:"nonce"`
+	CipherText        []byte `json:"cipher_text"`
+	Nonce             []byte `json:"nonce"`
+	WrappedDEK        []byte `json:"wrapped_dek"`
+	DekNonce          []byte `json:"dek_nonce"`
+	EncryptionVersion int32  `json:"encryption_version"`
 }
