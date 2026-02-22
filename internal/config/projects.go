@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 type ProjectCreateRequest struct {
 	Name               string    `json:"name"`
 	UserId             uuid.UUID `json:"user_id"`
-	WrappedPMK         []byte    `json:"wrapped_pmk"`
+	WrappedPRK         []byte    `json:"wrapped_prk"`
 	WrapNonce          []byte    `json:"wrap_nonce"`
 	EphemeralPublicKey []byte    `json:"ephemeral_public_key"`
 }
@@ -39,7 +39,7 @@ type AddUserToProjectRequest struct {
 	ProjectName        string    `json:"project_name"`
 	AdminId            uuid.UUID `json:"admin_id"`
 	UserId             uuid.UUID `json:"user_id"`
-	WrappedPMK         []byte    `json:"wrapped_pmk"`
+	WrappedPRK         []byte    `json:"wrapped_prk"`
 	WrapNonce          []byte    `json:"wrap_nonce"`
 	EphemeralPublicKey []byte    `json:"ephemeral_public_key"`
 }
@@ -65,7 +65,7 @@ type GetUserProjectRequest struct {
 
 type GetUserProjectResponse struct {
 	ProjectId          uuid.UUID `json:"project_id"`
-	WrappedPMK         []byte    `json:"wrapped_pmk"`
+	WrappedPRK         []byte    `json:"wrapped_prk"`
 	WrapNonce          []byte    `json:"wrap_nonce"`
 	EphemeralPublicKey []byte    `json:"ephemeral_public_key"`
 }
@@ -77,7 +77,7 @@ type GetMemberProjectRequest struct {
 
 type GetMemberProjectResponse struct {
 	ProjectId          uuid.UUID `json:"project_id"`
-	WrappedPMK         []byte    `json:"wrapped_pmk"`
+	WrappedPRK         []byte    `json:"wrapped_prk"`
 	WrapNonce          []byte    `json:"wrap_nonce"`
 	EphemeralPublicKey []byte    `json:"ephemeral_public_key"`
 }

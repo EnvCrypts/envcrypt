@@ -63,12 +63,12 @@ SET is_revoked = $3
 WHERE user_id = $1 AND project_id = $2;
 
 
--- name: AddWrappedPMK :one
+-- name: AddWrappedPRK :one
 INSERT INTO project_wrapped_keys (
     project_id,
     user_id,
 
-    wrapped_pmk,
+    wrapped_prk,
     wrap_nonce,
     wrap_ephemeral_pub
 )
@@ -92,6 +92,9 @@ INSERT INTO env_versions (
     version,
     nonce,
     ciphertext,
+    wrapped_dek,
+    dek_nonce,
+    encryption_version,
     created_by,
     metadata
 )
@@ -102,7 +105,10 @@ SELECT
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7,
+    $8,
+    $9
 FROM env_versions
 WHERE project_id = $1 AND env_name = $2
 RETURNING *;

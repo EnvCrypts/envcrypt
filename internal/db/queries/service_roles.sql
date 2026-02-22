@@ -35,7 +35,7 @@ INSERT INTO service_delegations (
     service_role_id,
     project_id,
     env,
-    wrapped_pmk,
+    wrapped_prk,
     wrap_nonce,
     wrap_ephemeral_pub,
     delegated_by
@@ -44,7 +44,7 @@ VALUES (
            $1,  -- service_role_id
            $2,  -- project_id
            $3,  -- env
-           $4,  -- wrapped_pmk
+           $4,  -- wrapped_prk
            $5,  -- wrap_nonce
            $6,  -- wrap_ephemeral_pub (admin_eph_pub)
            $7   -- delegated_by (admin user id)
