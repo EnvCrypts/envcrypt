@@ -51,7 +51,7 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	projectRouter.HandleFunc("POST /rotate/init", handler.RotateInit)
 	projectRouter.HandleFunc("POST /rotate/commit", handler.RotateCommit)
 	
-	// Snapshots
+	
 	projectRouter.HandleFunc("POST /snapshot/export", handler.SnapshotExport)
 	projectRouter.HandleFunc("POST /snapshot/import", handler.SnapshotImport)
 

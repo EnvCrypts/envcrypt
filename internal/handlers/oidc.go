@@ -77,20 +77,20 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 
 	var req config.GithubOIDCLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, "invalid request body")
+		helpers.WriteError(w, http.StatusBadRequest, helpers.ErrBadRequest("Invalid request body", ""))
 		return
 	}
 	defer r.Body.Close()
 
 	claims, err := handler.OIDC.VerifyToken(r.Context(), req.IDToken)
 	if err != nil {
-		helpers.WriteError(w, http.StatusUnauthorized, "invalid OIDC token")
+		helpers.WriteError(w, 0, helpers.ErrUnauthorized("INVALID_OIDC_TOKEN", "Invalid or expired OIDC token", "Ensure the GitHub Actions workflow is generating a valid token"))
 		return
 	}
 
 	repoPrincipal := claims.Subject
 	if repoPrincipal == "" {
-		helpers.WriteError(w, http.StatusUnauthorized, "missing repo identity")
+		helpers.WriteError(w, 0, helpers.ErrUnauthorized("MISSING_IDENTITY", "Missing repo identity in OIDC token", ""))
 		return
 	}
 
@@ -99,7 +99,7 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 		repoPrincipal,
 	)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 

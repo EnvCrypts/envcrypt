@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
@@ -51,7 +50,7 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionRegister, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: createBody.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return nil, errors.New("user already exists")
+			return nil, helpers.ErrConflict("User already exists", "Try a different email address")
 		}
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user not found")
+			return nil, helpers.ErrUnauthorized("INVALID_CREDENTIALS", "Invalid email or password", "Check your credentials and try again")
 		}
 		return nil, err
 	}
@@ -100,7 +99,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 
 	if auth.VerifyPassword(password, &stored) == false {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("invalid password")})
-		return nil, errors.New("invalid password")
+		return nil, helpers.ErrUnauthorized("INVALID_CREDENTIALS", "Invalid email or password", "Check your credentials and try again")
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: email, Status: config.StatusSuccess})
@@ -121,7 +120,7 @@ func (s *UserService) GetUserPublicKey(ctx context.Context, email string) (uuid.
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return uuid.Nil, nil, errors.New("user not found")
+			return uuid.Nil, nil, helpers.ErrNotFound("User", "Check the email address")
 		}
 		return uuid.Nil, nil, err
 	}
@@ -135,7 +134,7 @@ func (s *UserService) Logout(ctx context.Context, userId uuid.UUID) error {
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return errors.New("user not found")
+			return helpers.ErrNotFound("User", "")
 		}
 		return err
 	}

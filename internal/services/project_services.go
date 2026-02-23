@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/vijayvenkatj/envcrypt/database"
@@ -28,7 +27,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	creator, err := s.q.GetUserByID(ctx, createBody.UserId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("user not found")
+			return helpers.ErrNotFound("User", "")
 		}
 		return err
 	}
@@ -40,7 +39,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return errors.New("project with this name already exists")
+			return helpers.ErrConflict("Project with this name already exists", "Choose a different project name")
 		}
 		return err
 	}
@@ -99,7 +98,7 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 	actor, err := s.q.GetUserByID(ctx, requestBody.UserId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("user not found")
+			return helpers.ErrNotFound("User", "")
 		}
 		return err
 	}
@@ -110,7 +109,7 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("project not found")
+			return helpers.ErrNotFound("Project", "Check the project name or your permissions")
 		}
 		return err
 	}
@@ -118,22 +117,22 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: project.CreatedBy, ProjectID: project.ID})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("project role not found")
+			return helpers.ErrNotFound("Project role", "")
 		}
 		return err
 	}
 	if projectRole.IsRevoked == true {
-		return errors.New("user access is revoked")
+		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	if projectRole.Role != "admin" {
-		return errors.New("user is not an admin")
+		return helpers.ErrForbidden("Only project admins can perform this action", "")
 	}
 
 	err = s.q.DeleteProject(ctx, project.ID)
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to delete project")})
-		return errors.New("unable to delete project")
+		return helpers.ErrInternal("Unable to delete project")
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusSuccess})
@@ -148,7 +147,7 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("project not found")
+			return helpers.ErrNotFound("Project", "Check the project name or your permissions")
 		}
 		return err
 	}
@@ -156,7 +155,7 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	adminUser, err := s.q.GetUserByID(ctx, requestBody.AdminId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("admin user not found")
+			return helpers.ErrNotFound("User", "")
 		}
 		return err
 	}
@@ -164,16 +163,16 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("user role not found")
+			return helpers.ErrNotFound("Project role", "")
 		}
 		return err
 	}
 
 	if projectRole.Role != "admin" {
-		return errors.New("user is not an admin")
+		return helpers.ErrForbidden("Only project admins can perform this action", "")
 	}
 	if projectRole.IsRevoked == true {
-		return errors.New("user access is revoked")
+		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	var role = "member"
@@ -185,9 +184,9 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return errors.New("project already has user")
+			return helpers.ErrConflict("User is already a member of this project", "")
 		}
-		return errors.New("unable to add user to project")
+		return helpers.ErrInternal("Unable to add user to project")
 	}
 
 	_, err = s.q.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
@@ -199,7 +198,7 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to add wrapped prk")})
-		return errors.New("unable to add wrapped prk")
+		return helpers.ErrInternal("Unable to add wrapped PRK")
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusSuccess})
@@ -215,7 +214,7 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("project not found")
+			return helpers.ErrNotFound("Project", "Check the project name or your permissions")
 		}
 		return err
 	}
@@ -223,7 +222,7 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	adminUser, err := s.q.GetUserByID(ctx, requestBody.AdminId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("admin user not found")
+			return helpers.ErrNotFound("User", "")
 		}
 		return err
 	}
@@ -231,22 +230,22 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("user role not found")
+			return helpers.ErrNotFound("Project role", "")
 		}
 		return err
 	}
 
 	if projectRole.Role != "admin" {
-		return errors.New("user is not an admin")
+		return helpers.ErrForbidden("Only project admins can perform this action", "")
 	}
 	if projectRole.IsRevoked == true {
-		return errors.New("user access is revoked")
+		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	user, err := s.q.GetUserByEmail(ctx, requestBody.UserEmail)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return errors.New("user not found")
+			return helpers.ErrNotFound("User", "Check the email address")
 		}
 		return err
 	}
@@ -258,7 +257,7 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(user.ID.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to revoke user access")})
-		return errors.New("unable to revoke user access")
+		return helpers.ErrInternal("Unable to update user access")
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(user.ID.String()), Status: config.StatusSuccess})
@@ -274,7 +273,7 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("project not found")
+			return nil, helpers.ErrNotFound("Project", "Check the project name or your permissions")
 		}
 		return nil, err
 	}
@@ -285,7 +284,7 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("project wrapped key not found")
+			return nil, helpers.ErrNotFound("Project key", "")
 		}
 		return nil, err
 	}
@@ -307,7 +306,7 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("project not found")
+			return nil, helpers.ErrNotFound("Project", "Check the project name or your permissions")
 		}
 		return nil, err
 	}
@@ -318,7 +317,7 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("project wrapped key not found")
+			return nil, helpers.ErrNotFound("Project key", "")
 		}
 		return nil, err
 	}
@@ -337,7 +336,7 @@ func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRe
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user not found")
+			return nil, helpers.ErrNotFound("User", "")
 		}
 		return nil, err
 	}
@@ -349,7 +348,7 @@ func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRe
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user doesn't have permission")
+			return nil, helpers.ErrForbidden("User doesn't have permission for this project", "")
 		}
 		return nil, err
 	}
@@ -357,7 +356,7 @@ func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRe
 	project, err := s.q.GetProjectById(ctx, req.ProjectID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("project not found")
+			return nil, helpers.ErrNotFound("Project", "")
 		}
 		return nil, err
 	}
@@ -417,7 +416,7 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user not found")
+			return nil, helpers.ErrNotFound("User", "")
 		}
 		return nil, err
 	}
@@ -429,7 +428,7 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user doesn't have permission")
+			return nil, helpers.ErrForbidden("User doesn't have permission for this project", "")
 		}
 		return nil, err
 	}
@@ -448,7 +447,7 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("version conflict: prk_version has changed")
+			return nil, helpers.ErrConflict("PRK version conflict: another rotation is in progress", "Retry the rotation")
 		}
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -23,20 +24,20 @@ func (handler *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	user, err := handler.Services.Users.Create(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
 	accessToken, refreshToken, err := handler.Services.SessionService.Refresh(r.Context(), user.Id)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -58,20 +59,20 @@ func (handler *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	var loginRequestBody config.LoginRequestBody
 	err := json.NewDecoder(r.Body).Decode(&loginRequestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	user, err := handler.Services.Users.Login(r.Context(), loginRequestBody.Email, loginRequestBody.Password)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
 	accessToken, refreshToken, err := handler.Services.SessionService.Refresh(r.Context(), user.Id)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -93,14 +94,14 @@ func (handler *Handler) GetUserPublicKey(w http.ResponseWriter, r *http.Request)
 	var requestBody config.UserKeyRequestBody
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	userId, publicKey, err := handler.Services.Users.GetUserPublicKey(r.Context(), requestBody.Email)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -118,14 +119,14 @@ func (handler *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var requestBody config.RefreshRequestBody
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	accessToken, refreshToken, err := handler.Services.SessionService.Refresh(r.Context(), requestBody.UserID)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -144,14 +145,14 @@ func (handler *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	var requestBody config.LogoutRequestBody
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	err = handler.Services.Users.Logout(r.Context(), requestBody.UserID)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 

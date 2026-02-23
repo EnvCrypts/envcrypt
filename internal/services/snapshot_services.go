@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -46,7 +45,7 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user not found")
+			return nil, helpers.ErrNotFound("User", "")
 		}
 		return nil, err
 	}
@@ -56,23 +55,20 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 		CreatedBy: req.UserID,
 	})
 	if err != nil {
-		// Try member project
 		projectID, errMem := s.q.GetMemberProject(ctx, database.GetMemberProjectParams{
 			Name:   req.ProjectName,
 			UserID: req.UserID,
 		})
 		if errMem != nil {
 			s.audit.Log(ctx, AuditEntry{Action: "snapshot.export", ActorType: config.ActorTypeUser, ActorID: req.UserID.String(), ActorEmail: actor.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("project not found")})
-			return nil, errors.New("project not found or permission denied")
+			return nil, helpers.ErrNotFound("Project", "Check the project name or your permissions")
 		}
-		// fetch actual project
 		project, err = s.q.GetProjectById(ctx, projectID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Verify project role and not revoked
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
 		ProjectID: project.ID,
 		UserID:    req.UserID,
@@ -80,10 +76,9 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: "snapshot.export", ActorType: config.ActorTypeUser, ActorID: req.UserID.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr("permission denied")})
-		return nil, errors.New("permission denied")
+		return nil, helpers.ErrForbidden("You don't have permission to export this project", "")
 	}
 
-	// Gather rotation data (wrapped PRKs)
 	rotationData, err := s.q.GetRotationData(ctx, project.ID)
 	if err != nil {
 		return nil, err
@@ -154,42 +149,37 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, errors.New("user not found")
+			return nil, helpers.ErrNotFound("User", "")
 		}
 		return nil, err
 	}
 
-	// 1. Verify PRKs
 	if len(req.Snapshot.Members) == 0 {
-		return nil, errors.New("snapshot must contain at least one wrapped PRK member")
+		return nil, helpers.ErrBadRequest("Snapshot must contain at least one wrapped PRK member", "")
 	}
 
-	// 2. Verify unique IDs, env version consistency (simplified checks)
 	if req.Snapshot.Metadata.PrkVersion < 1 {
 		req.Snapshot.Metadata.PrkVersion = 1
 	}
 
-	// 3. Verify Checksum
 	actualChecksum, err := generateChecksum(req.Snapshot)
 	if err != nil {
-		return nil, errors.New("failed to compute checksum")
+		return nil, helpers.ErrInternal("Failed to compute checksum")
 	}
 
 	if actualChecksum != req.Checksum {
 		s.audit.Log(ctx, AuditEntry{Action: "snapshot.import", ActorType: config.ActorTypeUser, ActorID: req.UserID.String(), ActorEmail: actor.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("checksum mismatch")})
-		return nil, errors.New("checksum mismatch")
+		return nil, helpers.ErrBadRequest("Checksum mismatch", "The snapshot data may be corrupted or tampered with")
 	}
 
-	// Check if new project name already exists
 	_, err = s.q.GetProject(ctx, database.GetProjectParams{
 		Name:      req.NewProjectName,
 		CreatedBy: req.UserID,
 	})
 	if err == nil {
-		return nil, errors.New("project with this name already exists")
+		return nil, helpers.ErrConflict("Project with this name already exists", "Choose a different project name")
 	}
 
-	// Begin atomic transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -211,7 +201,6 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 	}
 
 	for _, member := range req.Snapshot.Members {
-		// Default to member, if it's the creator make them admin
 		role := "member"
 		if member.UserID == req.UserID {
 			role = "admin"
@@ -238,7 +227,6 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 	}
 
 	for _, env := range req.Snapshot.EnvVersions {
-		// Maintain versions, but assign a new internal database ID to avoid primary key collisions.
 		err = txQ.InsertEnvVersionRaw(ctx, database.InsertEnvVersionRawParams{
 			ID:                uuid.New(), 
 			ProjectID:         newProjectID,

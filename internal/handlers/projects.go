@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -14,14 +15,14 @@ func (handler *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	err = handler.Services.Projects.CreateProject(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -36,14 +37,14 @@ func (handler *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Projects.ListProjects(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -56,14 +57,14 @@ func (handler *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	err = handler.Services.Projects.DeleteProject(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -79,14 +80,14 @@ func (handler *Handler) AddUserToProject(w http.ResponseWriter, r *http.Request)
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	err = handler.Services.Projects.AddUserToProject(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -102,14 +103,14 @@ func (handler *Handler) SetUserAccess(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	err = handler.Services.Projects.SetUserAccess(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -125,14 +126,14 @@ func (handler *Handler) GetUserProjectKeys(w http.ResponseWriter, r *http.Reques
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Projects.GetUserProject(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -145,14 +146,14 @@ func (handler *Handler) GetMemberProject(w http.ResponseWriter, r *http.Request)
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Projects.GetMemberProject(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -164,14 +165,14 @@ func (handler *Handler) RotateInit(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Projects.RotateInit(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
@@ -183,21 +184,16 @@ func (handler *Handler) RotateCommit(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
 		return
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Projects.RotateCommit(r.Context(), requestBody)
 	if err != nil {
-		if err.Error() == "version conflict: prk_version has changed" {
-			helpers.WriteError(w, http.StatusConflict, err.Error())
-			return
-		}
-		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		helpers.WriteError(w, 0, err)
 		return
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, resp)
 }
-

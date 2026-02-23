@@ -16,18 +16,18 @@ func AuthMiddleware(sessionService *services.SessionService, next http.Handler) 
 
 		sessionID := r.Header.Get("X-Session-ID")
 		if sessionID == "" {
-			helpers.WriteError(w, http.StatusUnauthorized, "Session ID is required")
+			helpers.WriteError(w, 0, helpers.ErrUnauthorized("SESSION_MISSING", "Session ID is required", "Log in to obtain a session"))
 			return
 		}
 
 		sid, err := uuid.Parse(sessionID)
 		if err != nil {
-			helpers.WriteError(w, http.StatusUnauthorized, "Session ID is invalid")
+			helpers.WriteError(w, 0, helpers.ErrUnauthorized("SESSION_INVALID", "Session ID format is invalid", "Provide a valid UUID session ID"))
 			return
 		}
 
 		if err := sessionService.GetSession(r.Context(), sid); err != nil {
-			helpers.WriteError(w, http.StatusUnauthorized, "Session ID is invalid or expired")
+			helpers.WriteError(w, 0, err)
 			return
 		}
 
