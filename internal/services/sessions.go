@@ -9,11 +9,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
 
 type SessionService struct {
-	q *database.Queries
+	q     *database.Queries
+	audit *AuditService
 }
 
 func NewSessionService(q *database.Queries) *SessionService {
@@ -24,6 +26,7 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, repoPrincipal)
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: "unknown", ActorEmail: repoPrincipal, Status: config.StatusFailure, ErrMsg: helpers.Ptr("service role not found")})
 		if dberrors.IsNoRows(err) {
 			return nil, nil, errors.New(fmt.Sprintf("service role for %s not found", repoPrincipal))
 		}
@@ -32,6 +35,7 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 
 	projectDelegation, err := s.q.GetDelegation(ctx, serviceRole.ID)
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: serviceRole.ID.String(), ActorEmail: repoPrincipal, Status: config.StatusFailure, ErrMsg: helpers.Ptr("service delegation not found")})
 		if dberrors.IsNoRows(err) {
 			return nil, nil, errors.New(fmt.Sprintf("service delegation for %s not found", repoPrincipal))
 		}
@@ -46,8 +50,11 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 	})
 
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: serviceRole.ID.String(), ActorEmail: repoPrincipal, ProjectID: &projectDelegation.ProjectID, Environment: &projectDelegation.Env, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		return nil, nil, errors.New(fmt.Sprintf("failed to create session for %s/%s", projectDelegation.ProjectName, projectDelegation.Env))
 	}
+
+	s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: serviceRole.ID.String(), ActorEmail: repoPrincipal, ProjectID: &projectDelegation.ProjectID, Environment: &projectDelegation.Env, TargetID: helpers.Ptr(session.ID.String()), Status: config.StatusSuccess})
 
 	return &session.ID, &projectDelegation.ProjectID, nil
 }

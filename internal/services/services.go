@@ -1,6 +1,8 @@
 package services
 
-import "github.com/vijayvenkatj/envcrypt/database"
+import (
+	"github.com/vijayvenkatj/envcrypt/database"
+)
 
 type Services struct {
 	Users          *UserService
@@ -8,14 +10,31 @@ type Services struct {
 	Env            *EnvServices
 	ServiceRoles   *ServiceRoleServices
 	SessionService *SessionService
+	Audit          *AuditService
 }
 
-func NewServices(queries *database.Queries) *Services {
+func NewServices(queries *database.Queries, auditService *AuditService) *Services {
+	users := NewUserService(queries)
+	users.audit = auditService
+
+	projects := NewProjectService(queries)
+	projects.audit = auditService
+
+	env := NewEnvService(queries)
+	env.audit = auditService
+
+	serviceRoles := NewServiceRoleService(queries)
+	serviceRoles.audit = auditService
+
+	sessionService := NewSessionService(queries)
+	sessionService.audit = auditService
+
 	return &Services{
-		Users:          NewUserService(queries),
-		Projects:       NewProjectService(queries),
-		Env:            NewEnvService(queries),
-		ServiceRoles:   NewServiceRoleService(queries),
-		SessionService: NewSessionService(queries),
+		Users:          users,
+		Projects:       projects,
+		Env:            env,
+		ServiceRoles:   serviceRoles,
+		SessionService: sessionService,
+		Audit:          auditService,
 	}
 }
