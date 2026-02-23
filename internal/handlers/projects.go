@@ -158,3 +158,46 @@ func (handler *Handler) GetMemberProject(w http.ResponseWriter, r *http.Request)
 
 	helpers.WriteResponse(w, http.StatusOK, resp)
 }
+
+func (handler *Handler) RotateInit(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.RotateInitRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	resp, err := handler.Services.Projects.RotateInit(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, resp)
+}
+
+func (handler *Handler) RotateCommit(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.RotateCommitRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	resp, err := handler.Services.Projects.RotateCommit(r.Context(), requestBody)
+	if err != nil {
+		if err.Error() == "version conflict: prk_version has changed" {
+			helpers.WriteError(w, http.StatusConflict, err.Error())
+			return
+		}
+		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, resp)
+}
+

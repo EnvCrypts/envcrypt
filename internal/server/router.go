@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/database"
@@ -8,11 +9,11 @@ import (
 	"github.com/vijayvenkatj/envcrypt/internal/services"
 )
 
-func NewRouter(dbQueries *database.Queries) *http.ServeMux {
+func NewRouter(dbQueries *database.Queries, db *sql.DB) *http.ServeMux {
 	router := http.NewServeMux()
 
 	auditService := services.NewAuditService(dbQueries)
-	service := services.NewServices(dbQueries, auditService)
+	service := services.NewServices(dbQueries, auditService, db)
 	handler := handlers.NewHandler(service)
 
 	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler)))
@@ -47,6 +48,8 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	projectRouter.HandleFunc("POST /delete", handler.DeleteProject)
 	projectRouter.HandleFunc("POST /addUser", handler.AddUserToProject)
 	projectRouter.HandleFunc("POST /access", handler.SetUserAccess)
+	projectRouter.HandleFunc("POST /rotate/init", handler.RotateInit)
+	projectRouter.HandleFunc("POST /rotate/commit", handler.RotateCommit)
 
 	return projectRouter
 }

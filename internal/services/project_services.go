@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -12,6 +15,7 @@ import (
 
 type ProjectService struct {
 	q     *database.Queries
+	db    *sql.DB
 	audit *AuditService
 }
 
@@ -327,4 +331,175 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 	}
 
 	return response, nil
+}
+
+func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRequest) (*config.RotateInitResponse, error) {
+	actor, err := s.q.GetUserByID(ctx, req.UserID)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
+		ProjectID: req.ProjectID,
+		UserID:    req.UserID,
+		IsRevoked: false,
+	})
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user doesn't have permission")
+		}
+		return nil, err
+	}
+
+	project, err := s.q.GetProjectById(ctx, req.ProjectID)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("project not found")
+		}
+		return nil, err
+	}
+
+	rotationData, err := s.q.GetRotationData(ctx, req.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	wrappedDEKs, err := s.q.GetProjectWrappedDEKs(ctx, req.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &config.RotateInitResponse{
+		WrappedPRKs:      make([]config.WrappedKey, len(rotationData)),
+		MemberPublicKeys: make([]config.MemberPublicKey, len(rotationData)),
+		WrappedDEKs:      make([]config.WrappedDEK, len(wrappedDEKs)),
+		PRKVersion:       project.PrkVersion,
+	}
+
+	for i, row := range rotationData {
+		resp.WrappedPRKs[i] = config.WrappedKey{
+			UserID:             row.UserID,
+			WrappedPRK:         row.WrappedPrk,
+			WrapNonce:          row.WrapNonce,
+			EphemeralPublicKey: row.WrapEphemeralPub,
+		}
+		resp.MemberPublicKeys[i] = config.MemberPublicKey{
+			UserID:    row.UserID,
+			PublicKey: row.UserPublicKey,
+		}
+	}
+
+	for i, dek := range wrappedDEKs {
+		resp.WrappedDEKs[i] = config.WrappedDEK{
+			EnvVersionID: dek.ID,
+			WrappedDEK:   dek.WrappedDek,
+			DekNonce:     dek.DekNonce,
+		}
+	}
+
+	s.audit.Log(ctx, AuditEntry{
+		Action:    config.ActionPRKRotate,
+		ActorType: config.ActorTypeUser,
+		ActorID:   req.UserID.String(),
+		ActorEmail: actor.Email,
+		ProjectID: &req.ProjectID,
+		Status:    config.StatusSuccess,
+		Metadata:  mustJSON(map[string]any{"phase": "init", "prk_version": project.PrkVersion}),
+	})
+
+	return resp, nil
+}
+
+func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateCommitRequest) (*config.RotateCommitResponse, error) {
+	actor, err := s.q.GetUserByID(ctx, req.UserID)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
+		ProjectID: req.ProjectID,
+		UserID:    req.UserID,
+		IsRevoked: false,
+	})
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("user doesn't have permission")
+		}
+		return nil, err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	txQ := s.q.WithTx(tx)
+
+	newVersion, err := txQ.IncrementPRKVersion(ctx, database.IncrementPRKVersionParams{
+		ID:         req.ProjectID,
+		PrkVersion: req.ExpectedPRKVersion,
+	})
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return nil, errors.New("version conflict: prk_version has changed")
+		}
+		return nil, err
+	}
+
+	for _, wrappedPRK := range req.NewWrappedPRKs {
+		err = txQ.UpdateWrappedPRK(ctx, database.UpdateWrappedPRKParams{
+			ProjectID:        req.ProjectID,
+			UserID:           wrappedPRK.UserID,
+			WrappedPrk:       wrappedPRK.WrappedPRK,
+			WrapNonce:        wrappedPRK.WrapNonce,
+			WrapEphemeralPub: wrappedPRK.EphemeralPublicKey,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update wrapped prk: %w", err)
+		}
+	}
+
+	for _, dek := range req.NewWrappedDEKs {
+		err = txQ.UpdateEnvVersionDEK(ctx, database.UpdateEnvVersionDEKParams{
+			ID:         dek.EnvVersionID,
+			WrappedDek: dek.NewWrappedDEK,
+			DekNonce:   dek.NewDekNonce,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update wrapped dek: %w", err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.audit.Log(ctx, AuditEntry{
+		Action:     config.ActionPRKRotate,
+		ActorType:  config.ActorTypeUser,
+		ActorID:    req.UserID.String(),
+		ActorEmail: actor.Email,
+		ProjectID:  &req.ProjectID,
+		Status:     config.StatusSuccess,
+		Metadata: mustJSON(map[string]any{
+			"phase":              "commit",
+			"old_prk_version":    req.ExpectedPRKVersion,
+			"new_prk_version":    newVersion,
+			"versions_rewrapped": len(req.NewWrappedDEKs),
+		}),
+	})
+
+	return &config.RotateCommitResponse{NewPRKVersion: newVersion}, nil
+}
+
+func mustJSON(v any) json.RawMessage {
+	data, _ := json.Marshal(v)
+	return data
 }
