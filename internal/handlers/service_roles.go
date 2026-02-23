@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
@@ -51,14 +50,12 @@ func (handler *Handler) CreateServiceRole(w http.ResponseWriter, r *http.Request
 	var requestBody config.ServiceRoleCreateRequest
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		log.Print(err)
 		helpers.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.ServiceRoles.Create(r.Context(), requestBody)
-	log.Print(err)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

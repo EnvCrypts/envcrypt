@@ -11,7 +11,8 @@ import (
 func NewRouter(dbQueries *database.Queries) *http.ServeMux {
 	router := http.NewServeMux()
 
-	service := services.NewServices(dbQueries)
+	auditService := services.NewAuditService(dbQueries)
+	service := services.NewServices(dbQueries, auditService)
 	handler := handlers.NewHandler(service)
 
 	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler)))

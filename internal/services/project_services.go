@@ -6,11 +6,13 @@ import (
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
 
 type ProjectService struct {
-	q *database.Queries
+	q     *database.Queries
+	audit *AuditService
 }
 
 func NewProjectService(q *database.Queries) *ProjectService {
@@ -19,11 +21,20 @@ func NewProjectService(q *database.Queries) *ProjectService {
 
 func (s *ProjectService) CreateProject(ctx context.Context, createBody config.ProjectCreateRequest) error {
 
+	creator, err := s.q.GetUserByID(ctx, createBody.UserId)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("user not found")
+		}
+		return err
+	}
+
 	project, err := s.q.CreateProject(ctx, database.CreateProjectParams{
 		Name:      createBody.Name,
 		CreatedBy: createBody.UserId,
 	})
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
 			return errors.New("project with this name already exists")
 		}
@@ -36,6 +47,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		Role:      "admin",
 	})
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		return err
 	}
 
@@ -47,9 +59,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		WrapEphemeralPub: createBody.EphemeralPublicKey,
 	})
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		return err
 	}
 
+	s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusSuccess})
 	return nil
 }
 
@@ -77,6 +91,14 @@ func (s *ProjectService) ListProjects(ctx context.Context, requestBody config.Li
 }
 
 func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.ProjectDeleteRequest) error {
+
+	actor, err := s.q.GetUserByID(ctx, requestBody.UserId)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("user not found")
+		}
+		return err
+	}
 
 	project, err := s.q.GetProject(ctx, database.GetProjectParams{
 		Name:      requestBody.ProjectName,
@@ -106,9 +128,11 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 
 	err = s.q.DeleteProject(ctx, project.ID)
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to delete project")})
 		return errors.New("unable to delete project")
 	}
 
+	s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusSuccess})
 	return nil
 }
 
@@ -121,6 +145,14 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	if err != nil {
 		if dberrors.IsNoRows(err) {
 			return errors.New("project not found")
+		}
+		return err
+	}
+
+	adminUser, err := s.q.GetUserByID(ctx, requestBody.AdminId)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("admin user not found")
 		}
 		return err
 	}
@@ -147,6 +179,7 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		Role:      role,
 	})
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
 			return errors.New("project already has user")
 		}
@@ -161,8 +194,11 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		WrapEphemeralPub: requestBody.EphemeralPublicKey,
 	})
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to add wrapped prk")})
 		return errors.New("unable to add wrapped prk")
 	}
+
+	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusSuccess})
 
 	return nil
 }
@@ -176,6 +212,14 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	if err != nil {
 		if dberrors.IsNoRows(err) {
 			return errors.New("project not found")
+		}
+		return err
+	}
+
+	adminUser, err := s.q.GetUserByID(ctx, requestBody.AdminId)
+	if err != nil {
+		if dberrors.IsNoRows(err) {
+			return errors.New("admin user not found")
 		}
 		return err
 	}
@@ -209,8 +253,11 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 		IsRevoked: requestBody.IsRevoked,
 	})
 	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(user.ID.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to revoke user access")})
 		return errors.New("unable to revoke user access")
 	}
+
+	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(user.ID.String()), Status: config.StatusSuccess})
 
 	return nil
 }
