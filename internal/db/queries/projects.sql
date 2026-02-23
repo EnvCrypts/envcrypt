@@ -124,3 +124,35 @@ SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 ORDER BY vers
 
 -- name: GetEnvVersions :many
 SELECT * FROM env_versions WHERE project_id = $1 AND env_name = $2 ORDER BY version DESC;
+
+-- name: GetRotationData :many
+SELECT
+    pwk.user_id,
+    pwk.wrapped_prk,
+    pwk.wrap_nonce,
+    pwk.wrap_ephemeral_pub,
+    u.user_public_key
+FROM project_wrapped_keys pwk
+JOIN users u ON u.id = pwk.user_id
+WHERE pwk.project_id = $1;
+
+-- name: GetProjectWrappedDEKs :many
+SELECT id, wrapped_dek, dek_nonce
+FROM env_versions
+WHERE project_id = $1 AND wrapped_dek IS NOT NULL;
+
+-- name: UpdateWrappedPRK :exec
+UPDATE project_wrapped_keys
+SET wrapped_prk = $3, wrap_nonce = $4, wrap_ephemeral_pub = $5
+WHERE project_id = $1 AND user_id = $2;
+
+-- name: UpdateEnvVersionDEK :exec
+UPDATE env_versions
+SET wrapped_dek = $2, dek_nonce = $3
+WHERE id = $1;
+
+-- name: IncrementPRKVersion :one
+UPDATE projects
+SET prk_version = prk_version + 1
+WHERE id = $1 AND prk_version = $2
+RETURNING prk_version;

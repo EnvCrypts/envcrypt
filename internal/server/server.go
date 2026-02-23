@@ -20,7 +20,7 @@ func NewServer(cfg *config.Config) *Server {
 	}
 	dbQueries := database.New(conn)
 
-	router := NewRouter(dbQueries)
+	router := NewRouter(dbQueries, conn)
 	handler := RequestMiddleware(router)
 	return &Server{
 		HttpServer: &http.Server{

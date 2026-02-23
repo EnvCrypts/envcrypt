@@ -1,6 +1,8 @@
 package services
 
 import (
+	"database/sql"
+
 	"github.com/vijayvenkatj/envcrypt/database"
 )
 
@@ -13,12 +15,13 @@ type Services struct {
 	Audit          *AuditService
 }
 
-func NewServices(queries *database.Queries, auditService *AuditService) *Services {
+func NewServices(queries *database.Queries, auditService *AuditService, db *sql.DB) *Services {
 	users := NewUserService(queries)
 	users.audit = auditService
 
 	projects := NewProjectService(queries)
 	projects.audit = auditService
+	projects.db = db
 
 	env := NewEnvService(queries)
 	env.audit = auditService
@@ -38,3 +41,4 @@ func NewServices(queries *database.Queries, auditService *AuditService) *Service
 		Audit:          auditService,
 	}
 }
+
