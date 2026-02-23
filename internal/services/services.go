@@ -13,6 +13,7 @@ type Services struct {
 	ServiceRoles   *ServiceRoleServices
 	SessionService *SessionService
 	Audit          *AuditService
+	Snapshot       *SnapshotService
 }
 
 func NewServices(queries *database.Queries, auditService *AuditService, db *sql.DB) *Services {
@@ -32,6 +33,9 @@ func NewServices(queries *database.Queries, auditService *AuditService, db *sql.
 	sessionService := NewSessionService(queries)
 	sessionService.audit = auditService
 
+	snapshot := NewSnapshotService(queries, db)
+	snapshot.SetAuditService(auditService)
+
 	return &Services{
 		Users:          users,
 		Projects:       projects,
@@ -39,6 +43,7 @@ func NewServices(queries *database.Queries, auditService *AuditService, db *sql.
 		ServiceRoles:   serviceRoles,
 		SessionService: sessionService,
 		Audit:          auditService,
+		Snapshot:       snapshot,
 	}
 }
 

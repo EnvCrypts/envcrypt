@@ -141,6 +141,10 @@ SELECT id, wrapped_dek, dek_nonce
 FROM env_versions
 WHERE project_id = $1 AND wrapped_dek IS NOT NULL;
 
+-- name: GetAllEnvVersionsForProject :many
+SELECT * FROM env_versions WHERE project_id = $1;
+
+
 -- name: UpdateWrappedPRK :exec
 UPDATE project_wrapped_keys
 SET wrapped_prk = $3, wrap_nonce = $4, wrap_ephemeral_pub = $5
@@ -156,3 +160,31 @@ UPDATE projects
 SET prk_version = prk_version + 1
 WHERE id = $1 AND prk_version = $2
 RETURNING prk_version;
+
+-- name: InsertProjectWithVersion :one
+INSERT INTO projects (
+    id,
+    name,
+    created_by,
+    prk_version
+) VALUES (
+    $1, $2, $3, $4
+) RETURNING *;
+
+-- name: InsertEnvVersionRaw :exec
+INSERT INTO env_versions (
+    id,
+    project_id,
+    env_name,
+    version,
+    ciphertext,
+    nonce,
+    wrapped_dek,
+    dek_nonce,
+    encryption_version,
+    created_at,
+    created_by,
+    metadata
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+);
