@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
+
 // Action types
 const (
 	ActionEnvPull             = "env.pull"
@@ -53,4 +54,24 @@ type AuditLog struct {
 	Status       string          `json:"status"`
 	ErrorMessage *string         `json:"error_message"`
 	Metadata     json.RawMessage `json:"metadata"`
+}
+
+type ProjectAuditRequest struct {
+	ProjectID  uuid.UUID  `json:"project_id"`
+	Limit      int32      `json:"limit"`
+	Offset     int32      `json:"offset"`
+	ActorEmail *string    `json:"actor_email"`
+	Action     *string    `json:"action"`
+	Status     *string    `json:"status"`
+	From       *time.Time `json:"from"`
+	To         *time.Time `json:"to"`
+}
+
+type ProjectAuditResponse struct {
+	Logs       []AuditLog `json:"logs"`
+	Pagination struct {
+		Limit  int32 `json:"limit"`
+		Offset int32 `json:"offset"`
+		Total  int64 `json:"total"`
+	} `json:"pagination"`
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
@@ -190,6 +192,30 @@ func (handler *Handler) RotateCommit(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Projects.RotateCommit(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, 0, err)
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, resp)
+}
+
+func (handler *Handler) HandleProjectAuditLogs(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.ProjectAuditRequest
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+	defer r.Body.Close()
+
+	if requestBody.ProjectID == uuid.Nil {
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("project_id is required"))
+		return
+	}
+
+	resp, err := handler.Services.Audit.GetProjectAuditLogs(r.Context(), requestBody)
 	if err != nil {
 		helpers.WriteError(w, 0, err)
 		return

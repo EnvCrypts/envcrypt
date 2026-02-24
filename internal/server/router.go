@@ -54,6 +54,7 @@ func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
 	
 	projectRouter.HandleFunc("POST /snapshot/export", handler.SnapshotExport)
 	projectRouter.HandleFunc("POST /snapshot/import", handler.SnapshotImport)
+	projectRouter.HandleFunc("POST /audit", handler.HandleProjectAuditLogs)
 
 	return projectRouter
 }
