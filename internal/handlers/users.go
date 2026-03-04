@@ -161,3 +161,40 @@ func (handler *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	helpers.WriteResponse(w, http.StatusOK, response)
 }
+
+func (handler *Handler) RecoveryInit(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.RecoveryInitRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+	defer r.Body.Close()
+
+	responseBody, err := handler.Services.Users.RecoveryInit(r.Context(), requestBody.Email)
+	if err != nil {
+		helpers.WriteError(w, 0, err)
+		return
+	}
+
+	helpers.WriteResponse(w, http.StatusOK, responseBody)
+}
+
+func (handler *Handler) RecoveryComplete(w http.ResponseWriter, r *http.Request) {
+	var requestBody config.RecoveryCompleteRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+	defer r.Body.Close()
+
+	err := handler.Services.Users.RecoveryComplete(r.Context(), requestBody)
+	if err != nil {
+		helpers.WriteError(w, 0, err)
+		return
+	}
+
+	response := config.RecoveryCompleteResponseBody{
+		Message: "Recovery completed successfully",
+	}
+	helpers.WriteResponse(w, http.StatusOK, response)
+}

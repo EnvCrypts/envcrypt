@@ -27,6 +27,10 @@ type CreateRequestBody struct {
 	EncryptedUserPrivateKey []byte `json:"encrypted_user_private_key"`
 	PrivateKeySalt          []byte `json:"private_key_salt"`
 	PrivateKeyNonce         []byte `json:"private_key_nonce"`
+
+	RecoveryPrivateKey []byte `json:"recovery_encrypted_private_key"`
+	RecoverySalt       []byte `json:"recovery_kdf_salt"`
+	RecoveryNonce      []byte `json:"recovery_nonce"`
 }
 type CreateResponseBody struct {
 	Message string      `json:"message"`
@@ -65,5 +69,28 @@ type LogoutRequestBody struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 type LogoutResponseBody struct {
+	Message string `json:"message"`
+}
+
+type RecoveryInitRequestBody struct {
+	Email string `json:"email"`
+}
+
+type RecoveryInitResponseBody struct {
+	RecoveryPrivateKey []byte `json:"recovery_encrypted_private_key"`
+	RecoverySalt       []byte `json:"recovery_kdf_salt"`
+	RecoveryNonce      []byte `json:"recovery_nonce"`
+}
+
+type RecoveryCompleteRequestBody struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+
+	EncryptedUserPrivateKey []byte `json:"encrypted_user_private_key"`
+	PrivateKeySalt          []byte `json:"private_key_salt"`
+	PrivateKeyNonce         []byte `json:"private_key_nonce"`
+}
+
+type RecoveryCompleteResponseBody struct {
 	Message string `json:"message"`
 }

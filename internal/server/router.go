@@ -34,6 +34,8 @@ func UserRouter(handler *handlers.Handler) *http.ServeMux {
 	userRouter.HandleFunc("POST /logout", handler.Logout)
 	userRouter.HandleFunc("POST /search", handler.GetUserPublicKey)
 	userRouter.HandleFunc("POST /refresh", handler.Refresh)
+	userRouter.HandleFunc("POST /recovery/init", handler.RecoveryInit)
+	userRouter.HandleFunc("POST /recovery/complete", handler.RecoveryComplete)
 
 	return userRouter
 }

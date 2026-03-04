@@ -38,14 +38,17 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 	}
 
 	user, err := s.q.CreateUser(ctx, database.CreateUserParams{
-		Email:                   createBody.Email,
-		PasswordHash:            passwordHash.Hash,
-		PasswordSalt:            passwordHash.Salt,
-		UserPublicKey:           createBody.PublicKey,
-		EncryptedUserPrivateKey: createBody.EncryptedUserPrivateKey,
-		PrivateKeySalt:          createBody.PrivateKeySalt,
-		PrivateKeyNonce:         createBody.PrivateKeyNonce,
-		ArgonParams:             paramsJson,
+		Email:                       createBody.Email,
+		PasswordHash:                passwordHash.Hash,
+		PasswordSalt:                passwordHash.Salt,
+		UserPublicKey:               createBody.PublicKey,
+		EncryptedUserPrivateKey:     createBody.EncryptedUserPrivateKey,
+		PrivateKeySalt:              createBody.PrivateKeySalt,
+		PrivateKeyNonce:             createBody.PrivateKeyNonce,
+		RecoveryEncryptedPrivateKey: createBody.RecoveryPrivateKey,
+		RecoveryKdfSalt:             createBody.RecoverySalt,
+		RecoveryNonce:               createBody.RecoveryNonce,
+		ArgonParams:                 paramsJson,
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionRegister, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: createBody.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
@@ -151,5 +154,62 @@ func (s *UserService) Logout(ctx context.Context, userId uuid.UUID) error {
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), ActorEmail: user.Email, Status: config.StatusSuccess})
+	return nil
+}
+
+func (s *UserService) RecoveryInit(ctx context.Context, email string) (*config.RecoveryInitResponseBody, error) {
+	user, err := s.q.GetUserByEmail(ctx, email)
+	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: "Recovery Init", ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
+		if dberrors.IsNoRows(err) {
+			return nil, helpers.ErrNotFound("User", "Check the email address")
+		}
+		return nil, err
+	}
+
+	s.audit.Log(ctx, AuditEntry{Action: "Recovery Init", ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: email, Status: config.StatusSuccess})
+	return &config.RecoveryInitResponseBody{
+		RecoveryPrivateKey: user.RecoveryEncryptedPrivateKey,
+		RecoverySalt:       user.RecoveryKdfSalt,
+		RecoveryNonce:      user.RecoveryNonce,
+	}, nil
+}
+
+func (s *UserService) RecoveryComplete(ctx context.Context, req config.RecoveryCompleteRequestBody) error {
+	user, err := s.q.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: "Recovery Complete", ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: req.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
+		if dberrors.IsNoRows(err) {
+			return helpers.ErrNotFound("User", "Check the email address")
+		}
+		return err
+	}
+
+	passwordHash, err := auth.HashPassword(req.Password)
+	if err != nil {
+		return err
+	}
+
+	paramsJson, err := json.Marshal(passwordHash.Argon2idParam)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.q.UpdateUserCredentials(ctx, database.UpdateUserCredentialsParams{
+		Email:                   req.Email,
+		PasswordHash:            passwordHash.Hash,
+		PasswordSalt:            passwordHash.Salt,
+		ArgonParams:             paramsJson,
+		EncryptedUserPrivateKey: req.EncryptedUserPrivateKey,
+		PrivateKeyNonce:         req.PrivateKeyNonce,
+		PrivateKeySalt:          req.PrivateKeySalt,
+	})
+
+	if err != nil {
+		s.audit.Log(ctx, AuditEntry{Action: "Recovery Complete", ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: req.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
+		return err
+	}
+
+	s.audit.Log(ctx, AuditEntry{Action: "Recovery Complete", ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: req.Email, Status: config.StatusSuccess})
 	return nil
 }
