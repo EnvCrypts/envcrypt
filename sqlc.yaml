@@ -6,3 +6,18 @@ sql:
     gen:
       go:
         out: "database/"
+        overrides:
+          - db_type: "inet"
+            nullable: true
+            go_type:
+              import: "github.com/vijayvenkatj/envcrypt/internal/db/types"
+              type: "NullIP"
+          - db_type: "jsonb"
+            nullable: true
+            go_type:
+              import: "github.com/vijayvenkatj/envcrypt/internal/db/types"
+              type: "NullJSON"
+          - db_type: "jsonb"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"

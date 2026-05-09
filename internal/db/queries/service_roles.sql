@@ -11,16 +11,18 @@ SELECT * FROM service_roles WHERE created_by = $1;
 
 -- name: CreateServiceRole :one
 INSERT INTO service_roles (
+    id,
     name,
     service_role_public_key,
     repo_principal,
     created_by
 )
 VALUES (
-           $1,   -- name
-           $2,   -- service_role_public_key (BYTEA)
-           $3,   -- repo_principal
-           $4    -- created_by (UUID)
+           $1,   -- id
+           $2,   -- name
+           $3,   -- service_role_public_key (BYTEA)
+           $4,   -- repo_principal
+           $5    -- created_by (UUID)
        )
 RETURNING *;
 

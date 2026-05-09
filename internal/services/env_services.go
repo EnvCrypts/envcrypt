@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
@@ -169,6 +170,7 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	}
 
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
+		ID:                uuid.New(),
 		ProjectID:         requestBody.ProjectId,
 		EnvName:           requestBody.EnvName,
 		Ciphertext:        requestBody.CipherText,
@@ -220,6 +222,7 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	}
 
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
+		ID:                uuid.New(),
 		ProjectID:         requestBody.ProjectId,
 		EnvName:           requestBody.EnvName,
 		Ciphertext:        requestBody.CipherText,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
@@ -57,6 +58,7 @@ func (s *ServiceRoleServices) Create(ctx context.Context, requestBody config.Ser
 	}
 
 	serviceRole, err := s.q.CreateServiceRole(ctx, database.CreateServiceRoleParams{
+		ID:                   uuid.New(),
 		Name:                 requestBody.ServiceRoleName,
 		ServiceRolePublicKey: requestBody.ServiceRolePublicKey,
 		RepoPrincipal:        requestBody.RepoPrincipal,

@@ -3,12 +3,14 @@ SELECT * FROM projects WHERE created_by = $1 ORDER BY created_at desc;
 
 -- name: CreateProject :one
 INSERT INTO projects (
+    id,
     name,
     created_by
 )
 VALUES (
            $1,
-           $2
+           $2,
+           $3
        )
 RETURNING *;
 
@@ -87,6 +89,7 @@ SELECT * FROM project_wrapped_keys WHERE project_id = $1 AND user_id = $2;
 
 -- name: AddEnv :one
 INSERT INTO env_versions (
+    id,
     project_id,
     env_name,
     version,
@@ -101,16 +104,17 @@ INSERT INTO env_versions (
 SELECT
     $1,
     $2,
-    COALESCE(MAX(version), 0) + 1,
     $3,
+    COALESCE(MAX(version), 0) + 1,
     $4,
     $5,
     $6,
     $7,
     $8,
-    $9
+    $9,
+    $10
 FROM env_versions
-WHERE project_id = $1 AND env_name = $2
+WHERE project_id = $2 AND env_name = $3
 RETURNING *;
 
 

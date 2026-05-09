@@ -23,11 +23,11 @@ INSERT INTO audit_logs (
 SELECT *
 FROM audit_logs
 WHERE project_id = $1
-  AND (sqlc.narg('actor_email')::text IS NULL OR actor_email = sqlc.narg('actor_email'))
-  AND (sqlc.narg('action')::text IS NULL OR action = sqlc.narg('action'))
-  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
-  AND (sqlc.narg('from_time')::timestamptz IS NULL OR timestamp >= sqlc.narg('from_time'))
-  AND (sqlc.narg('to_time')::timestamptz IS NULL OR timestamp <= sqlc.narg('to_time'))
+  AND (sqlc.narg('actor_email') IS NULL OR actor_email = sqlc.narg('actor_email'))
+  AND (sqlc.narg('action') IS NULL OR action = sqlc.narg('action'))
+  AND (sqlc.narg('status') IS NULL OR status = sqlc.narg('status'))
+  AND (sqlc.narg('from_time') IS NULL OR timestamp >= sqlc.narg('from_time'))
+  AND (sqlc.narg('to_time') IS NULL OR timestamp <= sqlc.narg('to_time'))
 ORDER BY timestamp DESC
 LIMIT sqlc.arg('limit_val') OFFSET sqlc.arg('offset_val');
 
@@ -35,8 +35,8 @@ LIMIT sqlc.arg('limit_val') OFFSET sqlc.arg('offset_val');
 SELECT COUNT(*)
 FROM audit_logs
 WHERE project_id = $1
-  AND (sqlc.narg('actor_email')::text IS NULL OR actor_email = sqlc.narg('actor_email'))
-  AND (sqlc.narg('action')::text IS NULL OR action = sqlc.narg('action'))
-  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
-  AND (sqlc.narg('from_time')::timestamptz IS NULL OR timestamp >= sqlc.narg('from_time'))
-  AND (sqlc.narg('to_time')::timestamptz IS NULL OR timestamp <= sqlc.narg('to_time'));
+  AND (sqlc.narg('actor_email') IS NULL OR actor_email = sqlc.narg('actor_email'))
+  AND (sqlc.narg('action') IS NULL OR action = sqlc.narg('action'))
+  AND (sqlc.narg('status') IS NULL OR status = sqlc.narg('status'))
+  AND (sqlc.narg('from_time') IS NULL OR timestamp >= sqlc.narg('from_time'))
+  AND (sqlc.narg('to_time') IS NULL OR timestamp <= sqlc.narg('to_time'));

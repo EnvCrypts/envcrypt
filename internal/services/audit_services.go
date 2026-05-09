@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sqlc-dev/pqtype"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	dbtypes "github.com/vijayvenkatj/envcrypt/internal/db/types"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers/reqcontext"
@@ -100,18 +100,12 @@ func (s *AuditService) create(ctx context.Context, auditLog *config.AuditLog) er
 		targetID = sql.NullString{String: *auditLog.TargetID, Valid: true}
 	}
 
-	var ipAddr pqtype.Inet
+	var ipAddr dbtypes.NullIP
 	if auditLog.IPAddress != nil && *auditLog.IPAddress != "" {
 		ip := net.ParseIP(*auditLog.IPAddress)
 		if ip != nil {
-			var mask net.IPMask
-			if ip.To4() != nil {
-				mask = net.CIDRMask(32, 32)
-			} else {
-				mask = net.CIDRMask(128, 128)
-			}
-			ipAddr = pqtype.Inet{
-				IPNet: net.IPNet{IP: ip, Mask: mask},
+			ipAddr = dbtypes.NullIP{
+				IP:    ip,
 				Valid: true,
 			}
 		}
@@ -127,9 +121,9 @@ func (s *AuditService) create(ctx context.Context, auditLog *config.AuditLog) er
 		errMsg = sql.NullString{String: *auditLog.ErrorMessage, Valid: true}
 	}
 
-	var meta pqtype.NullRawMessage
+	var meta dbtypes.NullJSON
 	if auditLog.Metadata != nil {
-		meta = pqtype.NullRawMessage{RawMessage: json.RawMessage(auditLog.Metadata), Valid: true}
+		meta = dbtypes.NullJSON{RawMessage: json.RawMessage(auditLog.Metadata), Valid: true}
 	}
 
 	return s.q.CreateAuditLog(ctx, database.CreateAuditLogParams{
@@ -255,7 +249,7 @@ func (s *AuditService) GetProjectAuditLogs(
 	for i, log := range logs {
 		var ipAddr *string
 		if log.IpAddress.Valid {
-			ipStr := log.IpAddress.IPNet.IP.String()
+			ipStr := log.IpAddress.IP.String()
 			ipAddr = &ipStr
 		}
 		var errStr *string
