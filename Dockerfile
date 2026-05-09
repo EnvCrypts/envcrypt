@@ -7,7 +7,7 @@ RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.25.0
 
 COPY . .
 
@@ -25,6 +25,7 @@ COPY --from=builder /go/bin/goose /bin/goose
 COPY --from=builder /app/server .
 
 COPY --from=builder /app/internal/db/migrations ./migrations
+COPY --from=builder /app/internal/db/sqlite_migrations ./sqlite_migrations
 COPY entrypoint.sh .
 
 RUN chmod +x entrypoint.sh && touch .env

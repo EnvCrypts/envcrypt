@@ -7,6 +7,7 @@ import (
 
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	dbdriver "github.com/vijayvenkatj/envcrypt/internal/db/driver"
 )
 
 type Server struct {
@@ -14,10 +15,22 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config) *Server {
-	conn, err := sql.Open("pgx", cfg.DatabaseURL)
+	driverName, err := dbdriver.SQLDriverName(cfg.DatabaseDriver)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conn, err := sql.Open(driverName, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("Cannot connect to db:", err)
 	}
+	if dbdriver.IsSQLite(cfg.DatabaseDriver) {
+		conn.SetMaxOpenConns(1)
+		if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
+			log.Fatal("Cannot enable sqlite foreign keys:", err)
+		}
+	}
+
 	dbQueries := database.New(conn)
 
 	router := NewRouter(dbQueries, conn)
@@ -32,7 +45,7 @@ func NewServer(cfg *config.Config) *Server {
 
 func (s *Server) Start() error {
 	log.Printf("Server listening on %s", s.HttpServer.Addr)
-	
+
 	err := s.HttpServer.ListenAndServe()
 	if err != nil {
 		return err

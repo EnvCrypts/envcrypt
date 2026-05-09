@@ -1,0 +1,41 @@
+services:
+  api:
+    build: .
+    environment:
+      ADDR: ${ADDR:-:8080}
+      ENV: ${ENV:-development}
+      DATABASE_DRIVER: postgres
+      DB_USER: ${DB_USER:-envcrypt}
+      DB_PASSWORD: ${DB_PASSWORD:-envcrypt}
+      DATABASE_URL: ${POSTGRES_DATABASE_URL:-postgres://envcrypt:envcrypt@postgres:5432/envcrypt?sslmode=disable}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    networks:
+      - envcrypt-backend
+
+  postgres:
+    image: postgres:18
+    container_name: envcrypt-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-envcrypt}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-envcrypt}
+      POSTGRES_DB: envcrypt
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+    networks:
+      - envcrypt-backend
+
+volumes:
+  pgdata:
+
+networks:
+  envcrypt-backend:
+    driver: bridge

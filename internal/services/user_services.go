@@ -38,6 +38,7 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 	}
 
 	user, err := s.q.CreateUser(ctx, database.CreateUserParams{
+		ID:                          uuid.New(),
 		Email:                       createBody.Email,
 		PasswordHash:                passwordHash.Hash,
 		PasswordSalt:                passwordHash.Salt,

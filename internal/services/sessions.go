@@ -42,6 +42,7 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 	}
 
 	session, err := s.q.CreateCISession(ctx, database.CreateCISessionParams{
+		ID:            uuid.New(),
 		ProjectID:     uuid.NullUUID{UUID: projectDelegation.ProjectID, Valid: true},
 		Env:           sql.NullString{String: projectDelegation.Env, Valid: true},
 		ServiceRoleID: uuid.NullUUID{UUID: serviceRole.ID, Valid: true},
@@ -65,7 +66,10 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 	refreshTokenDB, err := s.q.RefreshToken(ctx, userID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			refreshTokenDB, err := s.q.CreateRefreshToken(ctx, userID)
+			refreshTokenDB, err := s.q.CreateRefreshToken(ctx, database.CreateRefreshTokenParams{
+				ID:     uuid.New(),
+				UserID: userID,
+			})
 			if err != nil {
 				if dberrors.IsUniqueViolation(err) {
 					return nil, nil, helpers.ErrConflict(fmt.Sprintf("Refresh token for user %s already exists", userID), "")
@@ -79,7 +83,10 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 	}
 	refreshToken = refreshTokenDB.ID
 
-	accessTokenDB, err := s.q.CreateUserSession(ctx, uuid.NullUUID{UUID: userID, Valid: true})
+	accessTokenDB, err := s.q.CreateUserSession(ctx, database.CreateUserSessionParams{
+		ID:     uuid.New(),
+		UserID: uuid.NullUUID{UUID: userID, Valid: true},
+	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
 			return nil, nil, helpers.ErrConflict(fmt.Sprintf("User session for %s already exists", userID), "")

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
@@ -33,6 +34,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	}
 
 	project, err := s.q.CreateProject(ctx, database.CreateProjectParams{
+		ID:        uuid.New(),
 		Name:      createBody.Name,
 		CreatedBy: createBody.UserId,
 	})
@@ -400,13 +402,13 @@ func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRe
 	}
 
 	s.audit.Log(ctx, AuditEntry{
-		Action:    config.ActionPRKRotate,
-		ActorType: config.ActorTypeUser,
-		ActorID:   req.UserID.String(),
+		Action:     config.ActionPRKRotate,
+		ActorType:  config.ActorTypeUser,
+		ActorID:    req.UserID.String(),
 		ActorEmail: actor.Email,
-		ProjectID: &req.ProjectID,
-		Status:    config.StatusSuccess,
-		Metadata:  mustJSON(map[string]any{"phase": "init", "prk_version": project.PrkVersion}),
+		ProjectID:  &req.ProjectID,
+		Status:     config.StatusSuccess,
+		Metadata:   mustJSON(map[string]any{"phase": "init", "prk_version": project.PrkVersion}),
 	})
 
 	return resp, nil

@@ -1,0 +1,22 @@
+services:
+  api:
+    build: .
+    environment:
+      ADDR: ${ADDR:-:8080}
+      ENV: ${ENV:-development}
+      DATABASE_DRIVER: sqlite
+      DATABASE_URL: ${SQLITE_DATABASE_URL:-file:/app/data/envcrypt.db?_time_format=sqlite&_pragma=foreign_keys(1)}
+    volumes:
+      - sqlite_data:/app/data
+    ports:
+      - "8081:8080"
+    networks:
+      - envcrypt-backend
+
+volumes:
+  sqlite_data:
+
+
+networks:
+  envcrypt-backend:
+    driver: bridge

@@ -45,9 +45,9 @@ jobs:
             sqlc generate
 
             echo "Restarting containers..."
-            docker compose down
-            docker compose build
-            docker compose up -d
+            docker compose -f docker-compose.postgres.yaml down
+            docker compose -f docker-compose.postgres.yaml build
+            docker compose -f docker-compose.postgres.yaml up -d
 
             echo "Deployment completed!"
           EOF

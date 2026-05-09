@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	Addr        string
-	DatabaseURL string
-	JWTSecret   string
-	Env         string
+	Addr           string
+	DatabaseURL    string
+	DatabaseDriver string
+	JWTSecret      string
+	Env            string
 }
 
 func Load() *Config {
@@ -21,9 +22,10 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		Addr:        getEnv("ADDR", ":8080"),
-		DatabaseURL: mustEnv("DATABASE_URL"),
-		Env:         getEnv("ENV", "development"),
+		Addr:           getEnv("ADDR", ":8080"),
+		DatabaseURL:    mustEnv("DATABASE_URL"),
+		DatabaseDriver: getEnv("DATABASE_DRIVER", "postgres"),
+		Env:            getEnv("ENV", "development"),
 	}
 	return cfg
 }
