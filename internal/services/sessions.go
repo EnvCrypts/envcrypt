@@ -14,11 +14,12 @@ import (
 
 type SessionService struct {
 	q     *database.Queries
+	db    *sql.DB
 	audit *AuditService
 }
 
-func NewSessionService(q *database.Queries) *SessionService {
-	return &SessionService{q: q}
+func NewSessionService(q *database.Queries, db *sql.DB) *SessionService {
+	return &SessionService{q: q, db: db}
 }
 
 func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uuid.UUID, *uuid.UUID, error) {
@@ -63,10 +64,18 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 
 	var accessToken, refreshToken uuid.UUID
 
-	refreshTokenDB, err := s.q.RefreshToken(ctx, userID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback()
+
+	txQ := s.q.WithTx(tx)
+
+	refreshTokenDB, err := txQ.RefreshToken(ctx, userID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			refreshTokenDB, err := s.q.CreateRefreshToken(ctx, database.CreateRefreshTokenParams{
+			refreshTokenDB, err := txQ.CreateRefreshToken(ctx, database.CreateRefreshTokenParams{
 				ID:     uuid.New(),
 				UserID: userID,
 			})
@@ -83,7 +92,7 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 	}
 	refreshToken = refreshTokenDB.ID
 
-	accessTokenDB, err := s.q.CreateUserSession(ctx, database.CreateUserSessionParams{
+	accessTokenDB, err := txQ.CreateUserSession(ctx, database.CreateUserSessionParams{
 		ID:     uuid.New(),
 		UserID: uuid.NullUUID{UUID: userID, Valid: true},
 	})
@@ -94,6 +103,10 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 		return nil, nil, err
 	}
 	accessToken = accessTokenDB.ID
+
+	if err = tx.Commit(); err != nil {
+		return nil, nil, err
+	}
 
 	return &accessToken, &refreshToken, nil
 }

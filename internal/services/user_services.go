@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/google/uuid"
@@ -14,11 +15,12 @@ import (
 
 type UserService struct {
 	q     *database.Queries
+	db    *sql.DB
 	audit *AuditService
 }
 
-func NewUserService(q *database.Queries) *UserService {
-	return &UserService{q: q}
+func NewUserService(q *database.Queries, db *sql.DB) *UserService {
+	return &UserService{q: q, db: db}
 }
 
 func (s *UserService) GetAllUsers(ctx context.Context) ([]database.User, error) {
@@ -143,14 +145,26 @@ func (s *UserService) Logout(ctx context.Context, userId uuid.UUID) error {
 		return err
 	}
 
-	err = s.q.DeleteRefreshTokens(ctx, userId)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	txQ := s.q.WithTx(tx)
+
+	err = txQ.DeleteRefreshTokens(ctx, userId)
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), ActorEmail: user.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		return err
 	}
-	err = s.q.DeleteUserAccessTokens(ctx, uuid.NullUUID{UUID: userId, Valid: true})
+	err = txQ.DeleteUserAccessTokens(ctx, uuid.NullUUID{UUID: userId, Valid: true})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), ActorEmail: user.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 

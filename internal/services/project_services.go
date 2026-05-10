@@ -33,7 +33,15 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		return err
 	}
 
-	project, err := s.q.CreateProject(ctx, database.CreateProjectParams{
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	txQ := s.q.WithTx(tx)
+
+	project, err := txQ.CreateProject(ctx, database.CreateProjectParams{
 		ID:        uuid.New(),
 		Name:      createBody.Name,
 		CreatedBy: createBody.UserId,
@@ -46,7 +54,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		return err
 	}
 
-	_, err = s.q.AddUserToProject(ctx, database.AddUserToProjectParams{
+	_, err = txQ.AddUserToProject(ctx, database.AddUserToProjectParams{
 		ProjectID: project.ID,
 		UserID:    createBody.UserId,
 		Role:      "admin",
@@ -56,7 +64,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 		return err
 	}
 
-	_, err = s.q.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
+	_, err = txQ.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
 		ProjectID:        project.ID,
 		UserID:           createBody.UserId,
 		WrappedPrk:       createBody.WrappedPRK,
@@ -65,6 +73,10 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 
@@ -178,7 +190,15 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	}
 
 	var role = "member"
-	_, err = s.q.AddUserToProject(ctx, database.AddUserToProjectParams{
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	txQ := s.q.WithTx(tx)
+
+	_, err = txQ.AddUserToProject(ctx, database.AddUserToProjectParams{
 		ProjectID: project.ID,
 		UserID:    requestBody.UserId,
 		Role:      role,
@@ -191,7 +211,7 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 		return helpers.ErrInternal("Unable to add user to project")
 	}
 
-	_, err = s.q.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
+	_, err = txQ.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
 		ProjectID:        project.ID,
 		UserID:           requestBody.UserId,
 		WrappedPrk:       requestBody.WrappedPRK,
@@ -201,6 +221,10 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to add wrapped prk")})
 		return helpers.ErrInternal("Unable to add wrapped PRK")
+	}
+
+	if err = tx.Commit(); err != nil {
+		return err
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusSuccess})
