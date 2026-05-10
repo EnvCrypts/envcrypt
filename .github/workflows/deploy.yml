@@ -22,11 +22,11 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
           cat > /home/github/envcrypt/.env << 'EOL'
           GOOSE_DRIVER=postgres
-          GOOSE_DBSTRING=${{ secrets.GOOSE_DBSTRING }}
+          GOOSE_DBSTRING=${{ secrets.DATABASE_URL }}
           GOOSE_MIGRATION_DIR=./internal/db/migrations
 
           DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           EOL
