@@ -2,46 +2,41 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
 
-func (h *Handler) SnapshotExport(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SnapshotExport(w http.ResponseWriter, r *http.Request) error {
 	var req config.SnapshotExportRequest
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	if req.ProjectName == "" {
-		helpers.WriteError(w, http.StatusBadRequest, helpers.ErrValidation(map[string]string{
+		return errors.Validation(map[string]string{
 			"project_name": "project_name is required",
-		}))
-		return
+		})
 	}
 
 	res, err := h.Services.Snapshot.ExportSnapshot(r.Context(), req)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, res)
+	return nil
 }
 
-func (h *Handler) SnapshotImport(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SnapshotImport(w http.ResponseWriter, r *http.Request) error {
 	var req config.SnapshotImportRequest
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
@@ -53,15 +48,14 @@ func (h *Handler) SnapshotImport(w http.ResponseWriter, r *http.Request) {
 		validationErrors["checksum"] = "checksum is required"
 	}
 	if len(validationErrors) > 0 {
-		helpers.WriteError(w, http.StatusBadRequest, helpers.ErrValidation(validationErrors))
-		return
+		return errors.Validation(validationErrors)
 	}
 
 	res, err := h.Services.Snapshot.ImportSnapshot(r.Context(), req)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, res)
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
@@ -27,9 +28,9 @@ func (s *ServiceRoleServices) List(ctx context.Context, requestBody config.Servi
 	serviceRolesDB, err := s.q.GetServiceRolesByAdmin(ctx, requestBody.CreatedBy)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Service role", "")
+			return nil, errors.NotFound("Service role", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	serviceRoles := make([]config.ServiceRole, len(serviceRolesDB))
@@ -52,9 +53,9 @@ func (s *ServiceRoleServices) Create(ctx context.Context, requestBody config.Ser
 	creator, err := s.q.GetUserByID(ctx, requestBody.CreatedBy)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "")
+			return nil, errors.NotFound("User", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	serviceRole, err := s.q.CreateServiceRole(ctx, database.CreateServiceRoleParams{
@@ -67,9 +68,9 @@ func (s *ServiceRoleServices) Create(ctx context.Context, requestBody config.Ser
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleCreate, ActorType: config.ActorTypeUser, ActorID: requestBody.CreatedBy.String(), ActorEmail: creator.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) == true {
-			return nil, helpers.ErrConflict("Service role already exists", "Choose a different name or principal")
+			return nil, errors.Conflict("Service role already exists", "Choose a different name or principal")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleCreate, ActorType: config.ActorTypeUser, ActorID: requestBody.CreatedBy.String(), ActorEmail: creator.Email, TargetID: helpers.Ptr(serviceRole.ID.String()), Status: config.StatusSuccess})
@@ -92,9 +93,9 @@ func (s *ServiceRoleServices) Get(ctx context.Context, requestBody config.Servic
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Service role", "")
+			return nil, errors.NotFound("Service role", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	return &config.ServiceRoleGetResponse{
@@ -115,27 +116,27 @@ func (s *ServiceRoleServices) Delete(ctx context.Context, requestBody config.Ser
 	actor, err := s.q.GetUserByID(ctx, requestBody.CreatedBy)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	serviceRole, err := s.q.GetServiceRoleById(ctx, requestBody.ServiceRoleId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Service role", "")
+			return errors.NotFound("Service role", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 	if requestBody.CreatedBy != serviceRole.CreatedBy {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.CreatedBy.String(), ActorEmail: actor.Email, TargetID: helpers.Ptr(serviceRole.ID.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("not authorized to delete service role")})
-		return helpers.ErrForbidden("Not authorized to delete this service role", "Only the creator can delete it")
+		return errors.Forbidden("Not authorized to delete this service role", "Only the creator can delete it")
 	}
 
 	_, err = s.q.DeleteServiceRole(ctx, serviceRole.ID)
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.CreatedBy.String(), ActorEmail: actor.Email, TargetID: helpers.Ptr(serviceRole.ID.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.CreatedBy.String(), ActorEmail: actor.Email, TargetID: helpers.Ptr(serviceRole.ID.String()), Status: config.StatusSuccess})
@@ -147,9 +148,9 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 	actor, err := s.q.GetUserByID(ctx, requestBody.DelegatedBy)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -158,24 +159,24 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project role", "")
+			return errors.NotFound("Project role", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	if projectRole.Role != "admin" {
-		return helpers.ErrForbidden("Only project admins can perform this action", "")
+		return errors.Forbidden("Only project admins can perform this action", "")
 	}
 	if projectRole.IsRevoked == true {
-		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
+		return errors.Forbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Service role", "")
+			return errors.NotFound("Service role", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	_, err = s.q.DelegateAccess(ctx, database.DelegateAccessParams{
@@ -190,9 +191,9 @@ func (s *ServiceRoleServices) DelegateAccess(ctx context.Context, requestBody co
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleDelegate, ActorType: config.ActorTypeUser, ActorID: requestBody.DelegatedBy.String(), ActorEmail: actor.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, TargetID: helpers.Ptr(serviceRole.ID.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return helpers.ErrConflict("Service role is already delegated to a project", "")
+			return errors.Conflict("Service role is already delegated to a project", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionServiceRoleDelegate, ActorType: config.ActorTypeUser, ActorID: requestBody.DelegatedBy.String(), ActorEmail: actor.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, TargetID: helpers.Ptr(serviceRole.ID.String()), Status: config.StatusSuccess})
@@ -204,17 +205,17 @@ func (s *ServiceRoleServices) GetPerms(ctx context.Context, requestBody config.S
 	serviceRole, err := s.q.GetServiceRoleByPrincipal(ctx, requestBody.RepoPrincipal)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Service role", "")
+			return nil, errors.NotFound("Service role", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	projectDelegated, err := s.q.GetDelegation(ctx, serviceRole.ID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Delegation", "Ensure the service role is delegated to a project")
+			return nil, errors.NotFound("Delegation", "Ensure the service role is delegated to a project")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	return &config.ServiceRolePermsResponse{

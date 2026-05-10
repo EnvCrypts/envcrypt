@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
@@ -28,14 +28,14 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	creator, err := s.q.GetUserByID(ctx, createBody.UserId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Unable to begin project transaction", err)
 	}
 	defer tx.Rollback()
 
@@ -49,9 +49,9 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return helpers.ErrConflict("Project with this name already exists", "Choose a different project name")
+			return errors.Conflict("Project with this name already exists", "Choose a different project name")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	_, err = txQ.AddUserToProject(ctx, database.AddUserToProjectParams{
@@ -61,7 +61,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 
 	_, err = txQ.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
@@ -73,11 +73,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, createBody config.Pr
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return err
+		return errors.InternalMessage("Unable to commit project transaction", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectCreate, ActorType: config.ActorTypeUser, ActorID: createBody.UserId.String(), ActorEmail: creator.Email, ProjectID: &project.ID, Status: config.StatusSuccess})
@@ -88,7 +88,7 @@ func (s *ProjectService) ListProjects(ctx context.Context, requestBody config.Li
 
 	projects, err := s.q.ListProjectsWithRole(ctx, requestBody.UserId)
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	resp := &config.ListProjectResponse{
@@ -112,9 +112,9 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 	actor, err := s.q.GetUserByID(ctx, requestBody.UserId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	project, err := s.q.GetProject(ctx, database.GetProjectParams{
@@ -123,30 +123,30 @@ func (s *ProjectService) DeleteProject(ctx context.Context, requestBody config.P
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project", "Check the project name or your permissions")
+			return errors.NotFound("Project", "Check the project name or your permissions")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: project.CreatedBy, ProjectID: project.ID})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project role", "")
+			return errors.NotFound("Project role", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 	if projectRole.IsRevoked == true {
-		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
+		return errors.Forbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	if projectRole.Role != "admin" {
-		return helpers.ErrForbidden("Only project admins can perform this action", "")
+		return errors.Forbidden("Only project admins can perform this action", "")
 	}
 
 	err = s.q.DeleteProject(ctx, project.ID)
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to delete project")})
-		return helpers.ErrInternal("Unable to delete project")
+		return errors.InternalMessage("Unable to delete project", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionProjectDelete, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusSuccess})
@@ -161,38 +161,38 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project", "Check the project name or your permissions")
+			return errors.NotFound("Project", "Check the project name or your permissions")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	adminUser, err := s.q.GetUserByID(ctx, requestBody.AdminId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project role", "")
+			return errors.NotFound("Project role", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	if projectRole.Role != "admin" {
-		return helpers.ErrForbidden("Only project admins can perform this action", "")
+		return errors.Forbidden("Only project admins can perform this action", "")
 	}
 	if projectRole.IsRevoked == true {
-		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
+		return errors.Forbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	var role = "member"
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Unable to begin membership transaction", err)
 	}
 	defer tx.Rollback()
 
@@ -206,9 +206,9 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return helpers.ErrConflict("User is already a member of this project", "")
+			return errors.Conflict("User is already a member of this project", "")
 		}
-		return helpers.ErrInternal("Unable to add user to project")
+		return errors.InternalMessage("Unable to add user to project", err)
 	}
 
 	_, err = txQ.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
@@ -220,11 +220,11 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to add wrapped prk")})
-		return helpers.ErrInternal("Unable to add wrapped PRK")
+		return errors.InternalMessage("Unable to add wrapped PRK", err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return err
+		return errors.InternalMessage("Unable to commit membership transaction", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(requestBody.UserId.String()), Status: config.StatusSuccess})
@@ -240,40 +240,40 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project", "Check the project name or your permissions")
+			return errors.NotFound("Project", "Check the project name or your permissions")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	adminUser, err := s.q.GetUserByID(ctx, requestBody.AdminId)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	projectRole, err := s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{UserID: requestBody.AdminId, ProjectID: project.ID})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("Project role", "")
+			return errors.NotFound("Project role", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	if projectRole.Role != "admin" {
-		return helpers.ErrForbidden("Only project admins can perform this action", "")
+		return errors.Forbidden("Only project admins can perform this action", "")
 	}
 	if projectRole.IsRevoked == true {
-		return helpers.ErrForbidden("Your access to this project has been revoked", "Contact the project admin")
+		return errors.Forbidden("Your access to this project has been revoked", "Contact the project admin")
 	}
 
 	user, err := s.q.GetUserByEmail(ctx, requestBody.UserEmail)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "Check the email address")
+			return errors.NotFound("User", "Check the email address")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	err = s.q.SetUserAccess(ctx, database.SetUserAccessParams{
@@ -283,7 +283,7 @@ func (s *ProjectService) SetUserAccess(ctx context.Context, requestBody config.S
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(user.ID.String()), Status: config.StatusFailure, ErrMsg: helpers.Ptr("unable to revoke user access")})
-		return helpers.ErrInternal("Unable to update user access")
+		return errors.InternalMessage("Unable to update user access", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionMembershipChange, ActorType: config.ActorTypeUser, ActorID: requestBody.AdminId.String(), ActorEmail: adminUser.Email, ProjectID: &project.ID, TargetID: helpers.Ptr(user.ID.String()), Status: config.StatusSuccess})
@@ -299,9 +299,9 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Project", "Check the project name or your permissions")
+			return nil, errors.NotFound("Project", "Check the project name or your permissions")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
@@ -310,9 +310,9 @@ func (s *ProjectService) GetUserProject(ctx context.Context, requestBody config.
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Project key", "")
+			return nil, errors.NotFound("Project key", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var response = &config.GetUserProjectResponse{
@@ -332,9 +332,9 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Project", "Check the project name or your permissions")
+			return nil, errors.NotFound("Project", "Check the project name or your permissions")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	wrappedKey, err := s.q.GetProjectWrappedKey(ctx, database.GetProjectWrappedKeyParams{
@@ -343,9 +343,9 @@ func (s *ProjectService) GetMemberProject(ctx context.Context, requestBody confi
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Project key", "")
+			return nil, errors.NotFound("Project key", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var response = &config.GetMemberProjectResponse{
@@ -362,9 +362,9 @@ func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRe
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "")
+			return nil, errors.NotFound("User", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -374,27 +374,27 @@ func (s *ProjectService) RotateInit(ctx context.Context, req config.RotateInitRe
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrForbidden("User doesn't have permission for this project", "")
+			return nil, errors.Forbidden("User doesn't have permission for this project", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	project, err := s.q.GetProjectById(ctx, req.ProjectID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Project", "")
+			return nil, errors.NotFound("Project", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	rotationData, err := s.q.GetRotationData(ctx, req.ProjectID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	wrappedDEKs, err := s.q.GetProjectWrappedDEKs(ctx, req.ProjectID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	resp := &config.RotateInitResponse{
@@ -442,9 +442,9 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "")
+			return nil, errors.NotFound("User", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -454,14 +454,14 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrForbidden("User doesn't have permission for this project", "")
+			return nil, errors.Forbidden("User doesn't have permission for this project", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, errors.InternalMessage("Failed to begin rotation transaction", err)
 	}
 	defer tx.Rollback()
 
@@ -473,9 +473,9 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrConflict("PRK version conflict: another rotation is in progress", "Retry the rotation")
+			return nil, errors.Conflict("PRK version conflict: another rotation is in progress", "Retry the rotation")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	for _, wrappedPRK := range req.NewWrappedPRKs {
@@ -487,7 +487,7 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 			WrapEphemeralPub: wrappedPRK.EphemeralPublicKey,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to update wrapped prk: %w", err)
+			return nil, errors.InternalMessage("Failed to update wrapped PRK", err)
 		}
 	}
 
@@ -498,12 +498,12 @@ func (s *ProjectService) RotateCommit(ctx context.Context, req config.RotateComm
 			DekNonce:   dek.NewDekNonce,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to update wrapped dek: %w", err)
+			return nil, errors.InternalMessage("Failed to update wrapped DEK", err)
 		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, errors.InternalMessage("Failed to commit rotation transaction", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{

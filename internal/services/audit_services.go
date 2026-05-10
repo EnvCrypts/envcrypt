@@ -12,7 +12,7 @@ import (
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
 	dbtypes "github.com/vijayvenkatj/envcrypt/internal/db/types"
-	"github.com/vijayvenkatj/envcrypt/internal/helpers"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers/reqcontext"
 )
@@ -152,13 +152,13 @@ func (s *AuditService) GetProjectAuditLogs(
 
 	sessionID, ok := ctx.Value("session_id").(uuid.UUID)
 	if !ok {
-		return config.ProjectAuditResponse{}, helpers.ErrUnauthorized("SESSION_MISSING", "User not authenticated", "")
+		return config.ProjectAuditResponse{}, errors.Unauthorized("SESSION_MISSING", "User not authenticated", "")
 	}
 
 	session, err := s.q.GetSession(ctx, sessionID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return config.ProjectAuditResponse{}, helpers.ErrUnauthorized("SESSION_EXPIRED", "Session is invalid or expired", "Please log in again")
+			return config.ProjectAuditResponse{}, errors.Unauthorized("SESSION_EXPIRED", "Session is invalid or expired", "Please log in again")
 		}
 		return config.ProjectAuditResponse{}, err
 	}
@@ -167,7 +167,7 @@ func (s *AuditService) GetProjectAuditLogs(
 	if session.UserID.Valid {
 		userID = session.UserID.UUID
 	} else {
-		return config.ProjectAuditResponse{}, helpers.ErrUnauthorized("USER_NOT_FOUND", "No user associated with session", "")
+		return config.ProjectAuditResponse{}, errors.Unauthorized("USER_NOT_FOUND", "No user associated with session", "")
 	}
 
 	// Validate project membership
@@ -178,7 +178,7 @@ func (s *AuditService) GetProjectAuditLogs(
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return config.ProjectAuditResponse{}, helpers.ErrForbidden("User doesn't have permission for this project", "")
+			return config.ProjectAuditResponse{}, errors.Forbidden("User doesn't have permission for this project", "")
 		}
 		return config.ProjectAuditResponse{}, err
 	}

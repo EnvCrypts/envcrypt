@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
@@ -28,18 +29,18 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: "unknown", ActorEmail: repoPrincipal, Status: config.StatusFailure, ErrMsg: helpers.Ptr("service role not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, nil, helpers.ErrNotFound("Service role", fmt.Sprintf("No service role found for principal '%s'", repoPrincipal))
+			return nil, nil, errors.NotFound("Service role", fmt.Sprintf("No service role found for principal '%s'", repoPrincipal))
 		}
-		return nil, nil, err
+		return nil, nil, errors.Internal(err)
 	}
 
 	projectDelegation, err := s.q.GetDelegation(ctx, serviceRole.ID)
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: serviceRole.ID.String(), ActorEmail: repoPrincipal, Status: config.StatusFailure, ErrMsg: helpers.Ptr("service delegation not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, nil, helpers.ErrNotFound("Delegation", "Ensure the service role is delegated to a project")
+			return nil, nil, errors.NotFound("Delegation", "Ensure the service role is delegated to a project")
 		}
-		return nil, nil, err
+		return nil, nil, errors.Internal(err)
 	}
 
 	session, err := s.q.CreateCISession(ctx, database.CreateCISessionParams{
@@ -52,7 +53,7 @@ func (s *SessionService) Create(ctx context.Context, repoPrincipal string) (*uui
 
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: serviceRole.ID.String(), ActorEmail: repoPrincipal, ProjectID: &projectDelegation.ProjectID, Environment: &projectDelegation.Env, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return nil, nil, helpers.ErrInternal(fmt.Sprintf("Failed to create session for %s/%s", projectDelegation.ProjectName, projectDelegation.Env))
+		return nil, nil, errors.InternalMessage(fmt.Sprintf("Failed to create session for %s/%s", projectDelegation.ProjectName, projectDelegation.Env), err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeService, ActorID: serviceRole.ID.String(), ActorEmail: repoPrincipal, ProjectID: &projectDelegation.ProjectID, Environment: &projectDelegation.Env, TargetID: helpers.Ptr(session.ID.String()), Status: config.StatusSuccess})
@@ -81,13 +82,13 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 			})
 			if err != nil {
 				if dberrors.IsUniqueViolation(err) {
-					return nil, nil, helpers.ErrConflict(fmt.Sprintf("Refresh token for user %s already exists", userID), "")
+					return nil, nil, errors.Conflict(fmt.Sprintf("Refresh token for user %s already exists", userID), "")
 				}
-				return nil, nil, err
+				return nil, nil, errors.Internal(err)
 			}
 			refreshToken = refreshTokenDB.ID
 		} else {
-			return nil, nil, err
+			return nil, nil, errors.Internal(err)
 		}
 	}
 	refreshToken = refreshTokenDB.ID
@@ -98,14 +99,14 @@ func (s *SessionService) Refresh(ctx context.Context, userID uuid.UUID) (*uuid.U
 	})
 	if err != nil {
 		if dberrors.IsUniqueViolation(err) {
-			return nil, nil, helpers.ErrConflict(fmt.Sprintf("User session for %s already exists", userID), "")
+			return nil, nil, errors.Conflict(fmt.Sprintf("User session for %s already exists", userID), "")
 		}
-		return nil, nil, err
+		return nil, nil, errors.Internal(err)
 	}
 	accessToken = accessTokenDB.ID
 
 	if err = tx.Commit(); err != nil {
-		return nil, nil, err
+		return nil, nil, errors.InternalMessage("Unable to commit refresh transaction", err)
 	}
 
 	return &accessToken, &refreshToken, nil
@@ -116,9 +117,9 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.
 	session, err := s.q.GetSession(ctx, requestBody.SessionID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrUnauthorized("SESSION_EXPIRED", fmt.Sprintf("Session %s is invalid or expired", requestBody.SessionID), "Please log in again")
+			return nil, errors.Unauthorized("SESSION_EXPIRED", fmt.Sprintf("Session %s is invalid or expired", requestBody.SessionID), "Please log in again")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var sessionProjectID, sessionServiceRoleID uuid.UUID
@@ -129,11 +130,11 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.
 		sessionServiceRoleID = session.ServiceRoleID.UUID
 		sessionEnv = session.Env.String
 	} else {
-		return nil, helpers.ErrUnauthorized("SESSION_INVALID", fmt.Sprintf("Session %s has incomplete data", requestBody.SessionID), "")
+		return nil, errors.Unauthorized("SESSION_INVALID", fmt.Sprintf("Session %s has incomplete data", requestBody.SessionID), "")
 	}
 
 	if (sessionProjectID != requestBody.ProjectID) || (sessionEnv != requestBody.Env) {
-		return nil, helpers.ErrForbidden("Project ID and environment do not match session", "")
+		return nil, errors.Forbidden("Project ID and environment do not match session", "")
 	}
 
 	projectKeys, err := s.q.GetDelegatedKeys(ctx, database.GetDelegatedKeysParams{
@@ -143,9 +144,9 @@ func (s *SessionService) GetProjectKeys(ctx context.Context, requestBody config.
 	})
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Project keys", "Ensure delegation is configured for this service role")
+			return nil, errors.NotFound("Project keys", "Ensure delegation is configured for this service role")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	return &config.ServiceRollProjectKeyResponse{
@@ -160,9 +161,9 @@ func (s *SessionService) GetSession(ctx context.Context, sessionID uuid.UUID) er
 	_, err := s.q.GetSession(ctx, sessionID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrUnauthorized("SESSION_EXPIRED", fmt.Sprintf("Session %s is invalid or expired", sessionID), "Please log in again")
+			return errors.Unauthorized("SESSION_EXPIRED", fmt.Sprintf("Session %s is invalid or expired", sessionID), "Please log in again")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	return nil

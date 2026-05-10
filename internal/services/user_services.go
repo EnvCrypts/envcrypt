@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers/auth"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
@@ -31,12 +32,12 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 
 	passwordHash, err := auth.HashPassword(createBody.Password)
 	if err != nil {
-		return nil, err
+		return nil, errors.InternalMessage("Failed to hash password", err)
 	}
 
 	paramsJson, err := json.Marshal(passwordHash.Argon2idParam)
 	if err != nil {
-		return nil, err
+		return nil, errors.InternalMessage("Failed to serialize password parameters", err)
 	}
 
 	user, err := s.q.CreateUser(ctx, database.CreateUserParams{
@@ -56,15 +57,15 @@ func (s *UserService) Create(ctx context.Context, createBody config.CreateReques
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionRegister, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: createBody.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return nil, helpers.ErrConflict("User already exists", "Try a different email address")
+			return nil, errors.Conflict("User already exists", "Try a different email address")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var argonParams auth.Argon2idParams
 	err = json.Unmarshal(user.ArgonParams, &argonParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.InternalMessage("Failed to parse password parameters", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionRegister, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: user.Email, Status: config.StatusSuccess})
@@ -86,15 +87,15 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrUnauthorized("INVALID_CREDENTIALS", "Invalid email or password", "Check your credentials and try again")
+			return nil, errors.Unauthorized("INVALID_CREDENTIALS", "Invalid email or password", "Check your credentials and try again")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var argonParams auth.Argon2idParams
 	err = json.Unmarshal(user.ArgonParams, &argonParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.InternalMessage("Failed to parse password parameters", err)
 	}
 
 	stored := auth.PasswordHash{
@@ -105,7 +106,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*confi
 
 	if auth.VerifyPassword(password, &stored) == false {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("invalid password")})
-		return nil, helpers.ErrUnauthorized("INVALID_CREDENTIALS", "Invalid email or password", "Check your credentials and try again")
+		return nil, errors.Unauthorized("INVALID_CREDENTIALS", "Invalid email or password", "Check your credentials and try again")
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionLogin, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: email, Status: config.StatusSuccess})
@@ -126,9 +127,9 @@ func (s *UserService) GetUserPublicKey(ctx context.Context, email string) (uuid.
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return uuid.Nil, nil, helpers.ErrNotFound("User", "Check the email address")
+			return uuid.Nil, nil, errors.NotFound("User", "Check the email address")
 		}
-		return uuid.Nil, nil, err
+		return uuid.Nil, nil, errors.Internal(err)
 	}
 
 	return user.ID, user.UserPublicKey, nil
@@ -140,14 +141,14 @@ func (s *UserService) Logout(ctx context.Context, userId uuid.UUID) error {
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Unable to begin logout transaction", err)
 	}
 	defer tx.Rollback()
 
@@ -156,16 +157,16 @@ func (s *UserService) Logout(ctx context.Context, userId uuid.UUID) error {
 	err = txQ.DeleteRefreshTokens(ctx, userId)
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), ActorEmail: user.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 	err = txQ.DeleteUserAccessTokens(ctx, uuid.NullUUID{UUID: userId, Valid: true})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), ActorEmail: user.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return err
+		return errors.InternalMessage("Unable to commit logout transaction", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionLogout, ActorType: config.ActorTypeUser, ActorID: userId.String(), ActorEmail: user.Email, Status: config.StatusSuccess})
@@ -177,9 +178,9 @@ func (s *UserService) RecoveryInit(ctx context.Context, email string) (*config.R
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: "Recovery Init", ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "Check the email address")
+			return nil, errors.NotFound("User", "Check the email address")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: "Recovery Init", ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: email, Status: config.StatusSuccess})
@@ -195,19 +196,19 @@ func (s *UserService) RecoveryComplete(ctx context.Context, req config.RecoveryC
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: "Recovery Complete", ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: req.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "Check the email address")
+			return errors.NotFound("User", "Check the email address")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	passwordHash, err := auth.HashPassword(req.Password)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Failed to hash password", err)
 	}
 
 	paramsJson, err := json.Marshal(passwordHash.Argon2idParam)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Failed to serialize password parameters", err)
 	}
 
 	_, err = s.q.UpdateUserCredentials(ctx, database.UpdateUserCredentialsParams{
@@ -222,7 +223,7 @@ func (s *UserService) RecoveryComplete(ctx context.Context, req config.RecoveryC
 
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: "Recovery Complete", ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: req.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: "Recovery Complete", ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: req.Email, Status: config.StatusSuccess})

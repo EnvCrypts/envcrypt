@@ -6,11 +6,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
@@ -45,9 +45,9 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "")
+			return nil, errors.NotFound("User", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	project, err := s.q.GetProject(ctx, database.GetProjectParams{
@@ -61,11 +61,11 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 		})
 		if errMem != nil {
 			s.audit.Log(ctx, AuditEntry{Action: "snapshot.export", ActorType: config.ActorTypeUser, ActorID: req.UserID.String(), ActorEmail: actor.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("project not found")})
-			return nil, helpers.ErrNotFound("Project", "Check the project name or your permissions")
+			return nil, errors.NotFound("Project", "Check the project name or your permissions")
 		}
 		project, err = s.q.GetProjectById(ctx, projectID)
 		if err != nil {
-			return nil, err
+			return nil, errors.Internal(err)
 		}
 	}
 
@@ -76,12 +76,12 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: "snapshot.export", ActorType: config.ActorTypeUser, ActorID: req.UserID.String(), ActorEmail: actor.Email, ProjectID: &project.ID, Status: config.StatusFailure, ErrMsg: helpers.Ptr("permission denied")})
-		return nil, helpers.ErrForbidden("You don't have permission to export this project", "")
+		return nil, errors.Forbidden("You don't have permission to export this project", "")
 	}
 
 	rotationData, err := s.q.GetRotationData(ctx, project.ID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var members []config.SnapshotMember
@@ -96,7 +96,7 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 
 	envVersions, err := s.q.GetAllEnvVersionsForProject(ctx, project.ID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var snapshotEnvs []config.SnapshotEnvVersion
@@ -127,7 +127,7 @@ func (s *SnapshotService) ExportSnapshot(ctx context.Context, req config.Snapsho
 
 	checksum, err := generateChecksum(snapshot)
 	if err != nil {
-		return nil, err
+		return nil, errors.InternalMessage("Failed to compute snapshot checksum", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{
@@ -149,13 +149,13 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 	actor, err := s.q.GetUserByID(ctx, req.UserID)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "")
+			return nil, errors.NotFound("User", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	if len(req.Snapshot.Members) == 0 {
-		return nil, helpers.ErrBadRequest("Snapshot must contain at least one wrapped PRK member", "")
+		return nil, errors.BadRequest("Snapshot must contain at least one wrapped PRK member", "")
 	}
 
 	if req.Snapshot.Metadata.PrkVersion < 1 {
@@ -164,12 +164,12 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 
 	actualChecksum, err := generateChecksum(req.Snapshot)
 	if err != nil {
-		return nil, helpers.ErrInternal("Failed to compute checksum")
+		return nil, errors.InternalMessage("Failed to compute checksum", err)
 	}
 
 	if actualChecksum != req.Checksum {
 		s.audit.Log(ctx, AuditEntry{Action: "snapshot.import", ActorType: config.ActorTypeUser, ActorID: req.UserID.String(), ActorEmail: actor.Email, Status: config.StatusFailure, ErrMsg: helpers.Ptr("checksum mismatch")})
-		return nil, helpers.ErrBadRequest("Checksum mismatch", "The snapshot data may be corrupted or tampered with")
+		return nil, errors.BadRequest("Checksum mismatch", "The snapshot data may be corrupted or tampered with")
 	}
 
 	_, err = s.q.GetProject(ctx, database.GetProjectParams{
@@ -177,12 +177,12 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 		CreatedBy: req.UserID,
 	})
 	if err == nil {
-		return nil, helpers.ErrConflict("Project with this name already exists", "Choose a different project name")
+		return nil, errors.Conflict("Project with this name already exists", "Choose a different project name")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, errors.InternalMessage("Failed to begin snapshot transaction", err)
 	}
 	defer tx.Rollback()
 
@@ -197,7 +197,7 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 		PrkVersion: req.Snapshot.Metadata.PrkVersion,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	for _, member := range req.Snapshot.Members {
@@ -211,7 +211,7 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 			Role:      role,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Internal(err)
 		}
 
 		_, err = txQ.AddWrappedPRK(ctx, database.AddWrappedPRKParams{
@@ -222,13 +222,13 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 			WrapEphemeralPub: member.EphemeralPublicKey,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Internal(err)
 		}
 	}
 
 	for _, env := range req.Snapshot.EnvVersions {
 		err = txQ.InsertEnvVersionRaw(ctx, database.InsertEnvVersionRawParams{
-			ID:                uuid.New(), 
+			ID:                uuid.New(),
 			ProjectID:         newProjectID,
 			EnvName:           env.EnvName,
 			Version:           env.Version,
@@ -242,12 +242,12 @@ func (s *SnapshotService) ImportSnapshot(ctx context.Context, req config.Snapsho
 			Metadata:          env.Metadata,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Internal(err)
 		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, errors.InternalMessage("Failed to commit snapshot transaction", err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{

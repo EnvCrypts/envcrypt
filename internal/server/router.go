@@ -9,90 +9,89 @@ import (
 	"github.com/vijayvenkatj/envcrypt/internal/services"
 )
 
-func NewRouter(dbQueries *database.Queries, db *sql.DB) *http.ServeMux {
+func NewRouter(dbQueries *database.Queries, db *sql.DB, debug bool) *http.ServeMux {
 	router := http.NewServeMux()
 
 	auditService := services.NewAuditService(dbQueries)
 	service := services.NewServices(dbQueries, auditService, db)
 	handler := handlers.NewHandler(service)
 
-	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler)))
-	router.Handle("/projects/", http.StripPrefix("/projects", AuthMiddleware(service.SessionService, ProjectRouter(handler))))
-	router.Handle("/env/", http.StripPrefix("/env", EnvRouter(handler)))
-	router.Handle("/service_role/", http.StripPrefix("/service_role", ServiceRoleRouter(handler)))
-	router.Handle("/oidc/", http.StripPrefix("/oidc", OIDCRouter(handler)))
+	router.Handle("/users/", http.StripPrefix("/users", UserRouter(handler, debug)))
+	router.Handle("/projects/", http.StripPrefix("/projects", ProjectRouter(handler, debug)))
+	router.Handle("/env/", http.StripPrefix("/env", EnvRouter(handler, debug)))
+	router.Handle("/service_role/", http.StripPrefix("/service_role", ServiceRoleRouter(handler, debug)))
+	router.Handle("/oidc/", http.StripPrefix("/oidc", OIDCRouter(handler, debug)))
 
 	return router
 }
 
-func UserRouter(handler *handlers.Handler) *http.ServeMux {
+func UserRouter(handler *handlers.Handler, debug bool) *http.ServeMux {
 
 	userRouter := http.NewServeMux()
 
-	userRouter.HandleFunc("POST /create", handler.CreateUser)
-	userRouter.HandleFunc("POST /login", handler.LoginUser)
-	userRouter.HandleFunc("POST /logout", handler.Logout)
-	userRouter.HandleFunc("POST /search", handler.GetUserPublicKey)
-	userRouter.HandleFunc("POST /refresh", handler.Refresh)
-	userRouter.HandleFunc("POST /recovery/init", handler.RecoveryInit)
-	userRouter.HandleFunc("POST /recovery/complete", handler.RecoveryComplete)
+	userRouter.HandleFunc("POST /create", WithErrors(debug, handler.CreateUser))
+	userRouter.HandleFunc("POST /login", WithErrors(debug, handler.LoginUser))
+	userRouter.HandleFunc("POST /logout", WithErrors(debug, handler.Logout))
+	userRouter.HandleFunc("POST /search", WithErrors(debug, handler.GetUserPublicKey))
+	userRouter.HandleFunc("POST /refresh", WithErrors(debug, handler.Refresh))
+	userRouter.HandleFunc("POST /recovery/init", WithErrors(debug, handler.RecoveryInit))
+	userRouter.HandleFunc("POST /recovery/complete", WithErrors(debug, handler.RecoveryComplete))
 
 	return userRouter
 }
 
-func ProjectRouter(handler *handlers.Handler) *http.ServeMux {
+func ProjectRouter(handler *handlers.Handler, debug bool) *http.ServeMux {
 	projectRouter := http.NewServeMux()
 
-	projectRouter.HandleFunc("POST /keys", handler.GetUserProjectKeys)
-	projectRouter.HandleFunc("POST /create", handler.CreateProject)
-	projectRouter.HandleFunc("POST /list", handler.ListProjects)
-	projectRouter.HandleFunc("POST /get", handler.GetMemberProject)
-	projectRouter.HandleFunc("POST /delete", handler.DeleteProject)
-	projectRouter.HandleFunc("POST /addUser", handler.AddUserToProject)
-	projectRouter.HandleFunc("POST /access", handler.SetUserAccess)
-	projectRouter.HandleFunc("POST /rotate/init", handler.RotateInit)
-	projectRouter.HandleFunc("POST /rotate/commit", handler.RotateCommit)
-	
-	
-	projectRouter.HandleFunc("POST /snapshot/export", handler.SnapshotExport)
-	projectRouter.HandleFunc("POST /snapshot/import", handler.SnapshotImport)
-	projectRouter.HandleFunc("POST /audit", handler.HandleProjectAuditLogs)
+	projectRouter.HandleFunc("POST /keys", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.GetUserProjectKeys)))
+	projectRouter.HandleFunc("POST /create", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.CreateProject)))
+	projectRouter.HandleFunc("POST /list", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.ListProjects)))
+	projectRouter.HandleFunc("POST /get", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.GetMemberProject)))
+	projectRouter.HandleFunc("POST /delete", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.DeleteProject)))
+	projectRouter.HandleFunc("POST /addUser", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.AddUserToProject)))
+	projectRouter.HandleFunc("POST /access", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.SetUserAccess)))
+	projectRouter.HandleFunc("POST /rotate/init", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.RotateInit)))
+	projectRouter.HandleFunc("POST /rotate/commit", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.RotateCommit)))
+
+	projectRouter.HandleFunc("POST /snapshot/export", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.SnapshotExport)))
+	projectRouter.HandleFunc("POST /snapshot/import", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.SnapshotImport)))
+	projectRouter.HandleFunc("POST /audit", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.HandleProjectAuditLogs)))
 
 	return projectRouter
 }
 
-func EnvRouter(handler *handlers.Handler) *http.ServeMux {
+func EnvRouter(handler *handlers.Handler, debug bool) *http.ServeMux {
 	envRouter := http.NewServeMux()
 
-	envRouter.Handle("POST /search", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetEnv)))
-	envRouter.Handle("POST /search/all", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetEnvVersions)))
-	envRouter.Handle("POST /create", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.AddEnv)))
-	envRouter.Handle("POST /update", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.UpdateEnv)))
+	envRouter.HandleFunc("POST /search", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.GetEnv)))
+	envRouter.HandleFunc("POST /search/all", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.GetEnvVersions)))
+	envRouter.HandleFunc("POST /create", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.AddEnv)))
+	envRouter.HandleFunc("POST /update", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.UpdateEnv)))
 
-	envRouter.HandleFunc("POST /ci/search", handler.GetCIEnv)
+	envRouter.HandleFunc("POST /ci/search", WithErrors(debug, handler.GetCIEnv))
 
 	return envRouter
 }
 
-func ServiceRoleRouter(handler *handlers.Handler) *http.ServeMux {
+func ServiceRoleRouter(handler *handlers.Handler, debug bool) *http.ServeMux {
 	serviceRoleRouter := http.NewServeMux()
 
-	serviceRoleRouter.Handle("POST /get", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetServiceRole)))
-	serviceRoleRouter.Handle("POST /create", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.CreateServiceRole)))
-	serviceRoleRouter.Handle("POST /get/all", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.ListServiceRoles)))
-	serviceRoleRouter.Handle("POST /delete", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.DeleteServiceRole)))
-	serviceRoleRouter.Handle("POST /delegate", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.DelegateAccess)))
-	serviceRoleRouter.Handle("POST /perms", AuthMiddleware(handler.Services.SessionService, http.HandlerFunc(handler.GetPerms)))
+	serviceRoleRouter.HandleFunc("POST /get", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.GetServiceRole)))
+	serviceRoleRouter.HandleFunc("POST /create", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.CreateServiceRole)))
+	serviceRoleRouter.HandleFunc("POST /get/all", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.ListServiceRoles)))
+	serviceRoleRouter.HandleFunc("POST /delete", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.DeleteServiceRole)))
+	serviceRoleRouter.HandleFunc("POST /delegate", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.DelegateAccess)))
+	serviceRoleRouter.HandleFunc("POST /perms", WithErrors(debug, AuthMiddleware(handler.Services.SessionService, handler.GetPerms)))
 
-	serviceRoleRouter.HandleFunc("POST /project-keys", handler.GetProjectKeys)
+	serviceRoleRouter.HandleFunc("POST /project-keys", WithErrors(debug, handler.GetProjectKeys))
 
 	return serviceRoleRouter
 }
 
-func OIDCRouter(handler *handlers.Handler) *http.ServeMux {
+func OIDCRouter(handler *handlers.Handler, debug bool) *http.ServeMux {
 	oidcRouter := http.NewServeMux()
 
-	oidcRouter.HandleFunc("POST /github", handler.GitHubOIDCLogin)
+	oidcRouter.HandleFunc("POST /github", WithErrors(debug, handler.GitHubOIDCLogin))
 
 	return oidcRouter
 }
