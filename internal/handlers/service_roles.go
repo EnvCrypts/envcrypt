@@ -2,143 +2,127 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
 
-func (handler *Handler) ListServiceRoles(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) ListServiceRoles(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRoleListRequest
 
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.ServiceRoles.List(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }
 
-func (handler *Handler) GetServiceRole(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetServiceRole(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRoleGetRequest
 
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.ServiceRoles.Get(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }
 
-func (handler *Handler) CreateServiceRole(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) CreateServiceRole(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRoleCreateRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.ServiceRoles.Create(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, *responseBody)
+	return nil
 }
 
-func (handler *Handler) DeleteServiceRole(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) DeleteServiceRole(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRoleDeleteRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
-	err = handler.Services.ServiceRoles.Delete(r.Context(), requestBody)
-	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+	if err := handler.Services.ServiceRoles.Delete(r.Context(), requestBody); err != nil {
+		return err
 	}
 
 	responseBody := config.ServiceRoleDeleteResponse{
 		Message: "Service role deleted!",
 	}
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }
 
-func (handler *Handler) DelegateAccess(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) DelegateAccess(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRoleDelegateRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
-	err = handler.Services.ServiceRoles.DelegateAccess(r.Context(), requestBody)
-	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+	if err := handler.Services.ServiceRoles.DelegateAccess(r.Context(), requestBody); err != nil {
+		return err
 	}
 
 	responseBody := config.ServiceRoleDelegateResponse{
 		Message: "Service role delegated access!",
 	}
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }
 
-func (handler *Handler) GetProjectKeys(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetProjectKeys(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRollProjectKeyRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.SessionService.GetProjectKeys(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }
 
-func (handler *Handler) GetPerms(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetPerms(w http.ResponseWriter, r *http.Request) error {
 	var requestBody config.ServiceRolePermsRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.ServiceRoles.GetPerms(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }

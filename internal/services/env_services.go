@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vijayvenkatj/envcrypt/database"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 	dberrors "github.com/vijayvenkatj/envcrypt/internal/helpers/db"
 )
@@ -28,9 +29,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "Check the email address")
+			return nil, errors.NotFound("User", "Check the email address")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -41,9 +42,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("permission denied")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrForbidden("You don't have permission to access this environment", "")
+			return nil, errors.Forbidden("You don't have permission to access this environment", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var env database.EnvVersion
@@ -55,9 +56,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 		})
 		if err != nil {
 			if dberrors.IsNoRows(err) {
-				return nil, helpers.ErrNotFound("Environment", "Check the environment name and version")
+				return nil, errors.NotFound("Environment", "Check the environment name and version")
 			}
-			return nil, err
+			return nil, errors.Internal(err)
 		}
 	} else {
 		env, err = s.q.GetLatestEnv(ctx, database.GetLatestEnvParams{
@@ -67,9 +68,9 @@ func (s *EnvServices) GetEnv(ctx context.Context, requestBody config.GetEnvReque
 		if err != nil {
 			s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("env not found")})
 			if dberrors.IsNoRows(err) {
-				return nil, helpers.ErrNotFound("Environment", "Check the environment name")
+				return nil, errors.NotFound("Environment", "Check the environment name")
 			}
-			return nil, err
+			return nil, errors.Internal(err)
 		}
 	}
 
@@ -89,9 +90,9 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeUser, ActorID: "unknown", ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("User", "Check the email address")
+			return nil, errors.NotFound("User", "Check the email address")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -102,9 +103,9 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("permission denied")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrForbidden("You don't have permission to access this environment", "")
+			return nil, errors.Forbidden("You don't have permission to access this environment", "")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	envVersions, err := s.q.GetEnvVersions(ctx, database.GetEnvVersionsParams{
@@ -112,7 +113,7 @@ func (s *EnvServices) GetEnvVersions(ctx context.Context, requestBody config.Get
 		EnvName:   requestBody.EnvName,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	var envResponses []config.EnvResponse
@@ -146,9 +147,9 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: "unknown", ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user not found")})
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "")
+			return errors.NotFound("User", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -159,14 +160,14 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: user.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("user doesn't have permission to store env")})
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrForbidden("You don't have permission to push to this environment", "")
+			return errors.Forbidden("You don't have permission to push to this environment", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	metadata, err := json.Marshal(requestBody.Metadata)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Failed to serialize env metadata", err)
 	}
 
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
@@ -184,9 +185,9 @@ func (s *EnvServices) AddEnv(ctx context.Context, requestBody config.AddEnvReque
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: user.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
 		if dberrors.IsUniqueViolation(err) {
-			return helpers.ErrConflict("Environment with this version already exists", "")
+			return errors.Conflict("Environment with this version already exists", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: requestBody.UserId.String(), ActorEmail: user.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusSuccess, Metadata: metadata})
@@ -198,9 +199,9 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	user, err := s.q.GetUserByEmail(ctx, requestBody.Email)
 	if err != nil {
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrNotFound("User", "Check the email address")
+			return errors.NotFound("User", "Check the email address")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	_, err = s.q.GetUserProjectRole(ctx, database.GetUserProjectRoleParams{
@@ -211,14 +212,14 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("permission denied")})
 		if dberrors.IsNoRows(err) {
-			return helpers.ErrForbidden("You don't have permission to update this environment", "")
+			return errors.Forbidden("You don't have permission to update this environment", "")
 		}
-		return err
+		return errors.Internal(err)
 	}
 
 	metadata, err := json.Marshal(requestBody.Metadata)
 	if err != nil {
-		return err
+		return errors.InternalMessage("Failed to serialize env metadata", err)
 	}
 
 	_, err = s.q.AddEnv(ctx, database.AddEnvParams{
@@ -235,7 +236,7 @@ func (s *EnvServices) UpdateEnv(ctx context.Context, requestBody config.UpdateEn
 	})
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr(err.Error())})
-		return err
+		return errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPush, ActorType: config.ActorTypeUser, ActorID: user.ID.String(), ActorEmail: requestBody.Email, ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusSuccess, Metadata: metadata})
@@ -251,9 +252,9 @@ func (s *EnvServices) GetEnvForCI(ctx context.Context, requestBody config.GetEnv
 	if err != nil {
 		s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeService, ActorID: "ci_session", ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusFailure, ErrMsg: helpers.Ptr("env not found")})
 		if dberrors.IsNoRows(err) {
-			return nil, helpers.ErrNotFound("Environment", "Check the environment name")
+			return nil, errors.NotFound("Environment", "Check the environment name")
 		}
-		return nil, err
+		return nil, errors.Internal(err)
 	}
 
 	s.audit.Log(ctx, AuditEntry{Action: config.ActionEnvPull, ActorType: config.ActorTypeService, ActorID: "ci_session", ProjectID: &requestBody.ProjectId, Environment: &requestBody.EnvName, Status: config.StatusSuccess})

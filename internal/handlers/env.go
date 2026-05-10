@@ -2,67 +2,59 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
 
-func (handler *Handler) GetEnv(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetEnv(w http.ResponseWriter, r *http.Request) error {
 
 	var RequestBody config.GetEnvRequest
 
-	err := json.NewDecoder(r.Body).Decode(&RequestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&RequestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Env.GetEnv(r.Context(), RequestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, resp)
+	return nil
 }
 
-func (handler *Handler) GetEnvVersions(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetEnvVersions(w http.ResponseWriter, r *http.Request) error {
 
 	var RequestBody config.GetEnvVersionsRequest
 
-	err := json.NewDecoder(r.Body).Decode(&RequestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&RequestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	resp, err := handler.Services.Env.GetEnvVersions(r.Context(), RequestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, resp)
+	return nil
 }
 
-func (handler *Handler) AddEnv(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) AddEnv(w http.ResponseWriter, r *http.Request) error {
 	var RequestBody config.AddEnvRequest
 
-	err := json.NewDecoder(r.Body).Decode(&RequestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&RequestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
-	err = handler.Services.Env.AddEnv(r.Context(), RequestBody)
-	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+	if err := handler.Services.Env.AddEnv(r.Context(), RequestBody); err != nil {
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, struct {
@@ -70,21 +62,18 @@ func (handler *Handler) AddEnv(w http.ResponseWriter, r *http.Request) {
 	}{
 		Message: "env added successfully",
 	})
+	return nil
 }
 
-func (handler *Handler) UpdateEnv(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) UpdateEnv(w http.ResponseWriter, r *http.Request) error {
 	var RequestBody config.UpdateEnvRequest
-	err := json.NewDecoder(r.Body).Decode(&RequestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&RequestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
-	err = handler.Services.Env.UpdateEnv(r.Context(), RequestBody)
-	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+	if err := handler.Services.Env.UpdateEnv(r.Context(), RequestBody); err != nil {
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusCreated, struct {
@@ -92,23 +81,22 @@ func (handler *Handler) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	}{
 		Message: "env updated successfully",
 	})
+	return nil
 }
 
-func (handler *Handler) GetCIEnv(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetCIEnv(w http.ResponseWriter, r *http.Request) error {
 
 	var requestBody config.GetEnvForCIRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	responseBody, err := handler.Services.Env.GetEnvForCI(r.Context(), requestBody)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, responseBody)
+	return nil
 }

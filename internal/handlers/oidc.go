@@ -8,6 +8,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/vijayvenkatj/envcrypt/internal/config"
+	"github.com/vijayvenkatj/envcrypt/internal/errors"
 	"github.com/vijayvenkatj/envcrypt/internal/helpers"
 )
 
@@ -73,25 +74,22 @@ func (g *GithubOIDCVerifier) VerifyToken(
 	}, nil
 }
 
-func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) error {
 
 	var req config.GithubOIDCLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		helpers.WriteError(w, http.StatusBadRequest, helpers.ErrBadRequest("Invalid request body", ""))
-		return
+		return errors.BadRequest("Invalid request body", "")
 	}
 	defer r.Body.Close()
 
 	claims, err := handler.OIDC.VerifyToken(r.Context(), req.IDToken)
 	if err != nil {
-		helpers.WriteError(w, 0, helpers.ErrUnauthorized("INVALID_OIDC_TOKEN", "Invalid or expired OIDC token", "Ensure the GitHub Actions workflow is generating a valid token"))
-		return
+		return errors.Unauthorized("INVALID_OIDC_TOKEN", "Invalid or expired OIDC token", "Ensure the GitHub Actions workflow is generating a valid token")
 	}
 
 	repoPrincipal := claims.Subject
 	if repoPrincipal == "" {
-		helpers.WriteError(w, 0, helpers.ErrUnauthorized("MISSING_IDENTITY", "Missing repo identity in OIDC token", ""))
-		return
+		return errors.Unauthorized("MISSING_IDENTITY", "Missing repo identity in OIDC token", "")
 	}
 
 	sessionID, projectID, err := handler.Services.SessionService.Create(
@@ -99,8 +97,7 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 		repoPrincipal,
 	)
 	if err != nil {
-		helpers.WriteError(w, 0, err)
-		return
+		return err
 	}
 
 	resp := config.GithubOIDCLoginResponse{
@@ -109,4 +106,5 @@ func (handler *Handler) GitHubOIDCLogin(w http.ResponseWriter, r *http.Request) 
 	}
 
 	helpers.WriteResponse(w, http.StatusOK, resp)
+	return nil
 }
