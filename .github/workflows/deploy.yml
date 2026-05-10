@@ -26,9 +26,9 @@ jobs:
           GOOSE_MIGRATION_DIR=./internal/db/migrations
 
           DB_USER=${{ secrets.DB_USER }}
-          POSTGRES_DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          POSTGRES_DATABASE_URL=${{ secrets.DATABASE_URL }}
           EOL
           EOF
 
